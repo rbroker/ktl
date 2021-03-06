@@ -48,7 +48,7 @@ DriverUnload(
 | algorithm | `find_if`, `equal_to`, `min`, `max` | |
 | cstddef | `nullptr_t` | |
 | cstdint | `int8_t` -> `uint64_t` | |
-| kernel | `floating_point_state`, `auto_irp`, `safe_user_buffer` | `ktl::floating_point_state` is needed for using [x87 floating point](https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-kesaveextendedprocessorstate).
+| kernel | `floating_point_state`, `auto_irp`, `safe_user_buffer`, `object_attributes` | `ktl::floating_point_state` is needed for using [x87 floating point](https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-kesaveextendedprocessorstate).
 | limits | `<T>min`, `<T>max` | For everything in cstdint |
 | list | `list<T>` | Based on kernel [LIST_ENTRY](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-list_entry) |
 | memory | `addressof`, `unique_ptr<T>`, `observer_ptr<T>`, `make_unique<T>` | |
@@ -61,8 +61,17 @@ DriverUnload(
 | type_traits | | Just enough for built-in features!
 | utility | `pair<T1, T2>` | |
 | vector | `vector<T>` | Fan favourite, probably far from optimised. |
+| wdf | | Various WDF helper classes |
 
-## Differences from usermode STL
+## ktl-ctl
+ktl-ctl.exe supports the usermode driver controls:
+- `ktl-ctl install` : Install the driver, and create a service to start/stop it.
+- `ktl-ctl uninstall` : Uninstall the driver and delete the service.
+- `ktl-ctl start` : Start the installed driver service
+- `ktl-ctl stop` : Stop the installed driver service
+- `ktl-ctl test` : Run the unit tests
+
+## STL?
 I've abused the STL header names, but this is not an STL reimplementation, and even the bits that look similar aren't intended to be remotely standards compliant. There's a number of change-points from a typical STL implementation to account for operating in kernel-mode, and without C++ exceptions. Some things possibly worth bearing in mind:
 
 - The `new` header defines an overload of `operator new` which accepts a `ktl::pool_type` parameter. This allows allocations to come from either the paged, or unpaged pools.
