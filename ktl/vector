@@ -1,0 +1,362 @@
+#pragma once
+
+#include <limits>
+#include <memory>
+
+namespace ktl
+{
+	template<typename T>
+	struct vector_iterator
+	{
+		using value_type = typename T;
+		using reference = value_type&;
+		using pointer = value_type*;
+
+		vector_iterator() :
+			begin_(nullptr),
+			end_(nullptr),
+			index_(numeric_limits<size_t>::max())
+		{
+		}
+
+		vector_iterator(pointer begin, pointer end) :
+			begin_(begin),
+			end_(end),
+			index_(0)
+		{
+		}
+
+		vector_iterator(pointer begin, pointer end, size_t index) :
+			begin_(begin),
+			end_(end),
+			index_(index)
+		{
+		}
+
+		vector_iterator(const vector_iterator& other) :
+			begin_(other.begin_),
+			end_(other.end_),
+			index_(other.index_)
+		{
+		}
+
+		reference operator*() const
+		{
+			return begin_[index_];
+		}
+
+		pointer operator->() const
+		{
+			return addressof(begin_[index_]);
+		}
+
+		vector_iterator& operator++()
+		{
+			if ((begin_ + ++index_) >= end_)
+			{
+				begin_ = nullptr;
+				end_ = nullptr;
+				index_ = numeric_limits<size_t>::max();
+			}
+
+			return *this;
+		}
+
+		vector_iterator operator++(int)
+		{
+			vector_iterator tmp = *this;
+			++(*this);
+			return tmp;
+		}
+
+		vector_iterator& operator--()
+		{
+			if (index_-- == 0)
+			{
+				begin_ = nullptr;
+				end_ = nullptr;
+				index_ = numeric_limits<size_t>::max();
+			}
+
+			return *this;
+		}
+
+		vector_iterator operator--(int)
+		{
+			vector_iterator tmp = *this;
+			--(*this);
+			return tmp;
+		}
+
+		[[nodiscard]] bool operator==(const vector_iterator& other) const
+		{
+			return begin_ == other.begin_ && end_ == other.end_ && index_ == other.index_;
+		}
+
+		[[nodiscard]] bool operator!=(const vector_iterator& other) const
+		{
+			return !(*this == other);
+		}
+
+		template<typename T, pool_type POOL>
+		friend struct vector;
+
+	private:
+		pointer begin_;
+		pointer end_;
+		size_t index_ = 0;
+	};
+
+	template<class T, pool_type POOL = pool_type::NonPaged>
+	struct vector
+	{
+		using iterator = vector_iterator<T>;
+
+		vector()
+		{
+		}
+
+		vector(const vector& other) = delete;
+		vector& operator=(const vector& other) = delete;
+
+		vector(vector&& other) :
+			size_(move(other.size_)),
+			capacity_(move(other.capacity_)),
+			buffer_(move(other.buffer_))
+		{
+			other.size_ = 0;
+			other.capacity_ = 0;
+		}
+
+		~vector()
+		{
+			clear();
+		}
+
+		vector& operator=(vector&& other)
+		{
+			buffer_ = move(other.buffer_);
+			size_ = other.size_;
+			capacity_ = other.capacity_;
+
+			other.size_ = 0;
+			other.capacity_ = 0;
+			return *this;
+		}
+
+		inline [[nodiscard]] size_t size() const
+		{
+			return size_;
+		}
+
+		inline [[nodiscard]] bool empty()
+		{
+			return size() == 0;
+		}
+
+		inline [[nodiscard]] size_t capacity()
+		{
+			return capacity_;
+		}
+
+		[[nodiscard]] bool reserve(size_t newSize)
+		{
+			if (capacity() >= newSize)
+				return true;
+
+			unique_ptr<T[]> tmp = make_unique<T[]>(newSize, POOL);
+			if (!tmp)
+				return false;
+
+			for (size_t i = 0; i < size(); ++i)
+			{
+				tmp[i] = move(buffer_[i]);
+			}
+
+			capacity_ = newSize;
+			buffer_ = move(tmp);
+
+			return true;
+		}
+
+		[[nodiscard]] bool push_back(const T& value)
+		{
+			if (!reserve_grow())
+				return false;
+
+			auto p = addressof(data()[size_++]);
+			observer_ptr<T> ptr = new (p) T{ value };
+			if (!ptr)
+			{
+				--size_;
+				return false;
+			}
+
+			return true;
+		}
+
+		[[nodiscard]] bool push_back(T&& value)
+		{
+			if (!reserve_grow())
+				return false;
+
+			auto p = addressof(data()[size_++]);
+			observer_ptr<T> ptr = new (p) T{ move(value) };
+			if (!ptr)
+			{
+				--size_;
+				return false;
+			}
+
+			return true;
+		}
+
+		template<class... Args>
+		[[nodiscard]] observer_ptr<T> emplace_back(Args&&... args)
+		{
+			if (!reserve_grow())
+				return {};
+
+			auto p = addressof(data()[size_++]);
+
+			observer_ptr<T> ptr = new (p) T(forward<Args>(args)...);
+			if (!ptr)
+				--size_;
+
+			return ptr;
+		}
+
+		void pop_back()
+		{
+			auto& value = (*this)[size_ - 1];
+			value.~T();
+			--size_;
+		}
+
+		[[nodiscard]] bool resize(size_t newSize)
+		{
+			if (newSize < size())
+			{
+				while (size() > newSize)
+				{
+					pop_back();
+				}
+			}
+			else if (newSize > size())
+			{
+				if (!reserve(newSize))
+				{
+					KTL_LOG_ERROR("Failed to allocate for resize: %lu -> %lu\n", size(), newSize);
+					return false;
+				}
+
+				// We need to default-construct some elements.
+				for (size_t i = size(); i < newSize; ++i)
+				{
+					if (!emplace_back())
+					{
+						KTL_LOG_ERROR("Failed to default construct element in vector\n");
+						return false;
+					}
+				}
+			}
+
+			return true;
+		}
+
+		[[nodiscard]] iterator begin()
+		{
+			if (empty())
+			{
+				return end();
+			}
+			else
+			{
+				KTL_LOG_TRACE("iterator begin: %p\n", data());
+				return iterator{ data(), data() + size() };
+			}
+		}
+
+		[[nodiscard]] constexpr iterator end()
+		{
+			return iterator{};
+		}
+
+		iterator erase(iterator toErase)
+		{
+			if (empty())
+			{
+				KTL_LOG_WARNING("Attempted to erase element from empty vector!\n");
+				return end();
+			}
+
+			auto b = toErase.index_;
+			auto e = size() - 1;
+
+			--size_;
+
+			if (b == e) // We're erasing the element at the end of the array
+			{
+				buffer_[b].~T();
+				return end();
+			}
+			else // We're erasing something in the middle, need to shift data along.
+			{
+				for (size_t current = b; current < e; ++current)
+				{
+					auto next = current + 1;
+					buffer_[current] = move(buffer_[next]);
+				}
+
+				return iterator{ data(), data() + size(), b };
+			}
+		}
+
+		[[nodiscard]] T& operator[](size_t index)
+		{
+			return data()[index];
+		}
+
+		[[nodiscard]] T& front()
+		{
+			return (*this)[0];
+		}
+
+		[[nodiscard]] T& back()
+		{
+			return (*this)[size() - 1];
+		}
+
+		[[nodiscard]] T* data()
+		{
+			return buffer_.get();
+		}
+
+		[[nodiscard]] void clear()
+		{
+			while (!empty())
+				pop_back();
+		}
+
+	private:
+		[[nodiscard]] bool reserve_grow()
+		{
+			if (empty())
+			{
+				return reserve(1);
+			}
+
+			if (size() == capacity())
+			{
+				return reserve(size() * 2);
+			}
+
+			return true;
+		}
+
+	private:
+		size_t size_ = 0;
+		size_t capacity_ = 0;
+		unique_ptr<T[]> buffer_;
+	};
+}

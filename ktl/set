@@ -1,0 +1,325 @@
+#pragma once
+
+#include <ktl_core.h>
+#include <algorithm>
+#include <kernel>
+#include <utility>
+#include <vector>
+
+namespace ktl
+{
+	template<class T, class Comparer, pool_type>
+	struct pool_set;
+
+	template<class T, class Comparer, pool_type POOL>
+	struct set_iterator
+	{
+		using value_type = T;
+		using reference = value_type&;
+		using pointer = value_type*;
+
+		set_iterator(observer_ptr<pool_set<T, Comparer, POOL>> set) :
+			set_(set),
+			bucket_(0),
+			element_(0)
+		{
+			if (set_->table_[bucket_].empty())
+				next_bucket();
+		}
+
+		set_iterator(observer_ptr<pool_set<T, Comparer, POOL>> set, size_t bucket, size_t element) :
+			set_(set),
+			bucket_(bucket),
+			element_(element)
+		{
+		}
+
+		set_iterator() :
+			set_(nullptr),
+			bucket_(numeric_limits<size_t>::max()),
+			element_(numeric_limits<size_t>::max())
+		{
+		}
+
+		reference operator*() const
+		{
+			return set_->table_[bucket_][element_];
+		}
+
+		pointer operator->() const
+		{
+			return addressof(set_->table_[bucket_][element_]);
+		}
+
+		set_iterator& operator++()
+		{
+			next_bucket();
+
+			return *this;
+		}
+
+		set_iterator operator++(int)
+		{
+			set_iterator tmp = *this;
+			++(*this);
+			return tmp;
+		}
+
+		bool operator==(const set_iterator& other)
+		{
+			return set_ == other.set_ && bucket_ == other.bucket_ && element_ == other.element_;
+		}
+
+		bool operator!=(const set_iterator& other)
+		{
+			return !(*this == other);
+		}
+
+	private:
+		void next_bucket()
+		{
+			if (bucket_ < set_->bucket_count())
+			{
+				auto& currentBucket = set_->table_[bucket_];
+
+				if (currentBucket.size() > ++element_)
+					return;
+
+				// find a bucket that has something in it.
+				for (; bucket_ < set_->bucket_count(); ++bucket_)
+				{
+					auto& nextBucket = set_->table_[bucket_];
+
+					if (!nextBucket.empty())
+					{
+						element_ = 0;
+						return;
+					}
+				}
+			}
+
+			// All remaining buckets empty bail.
+			bucket_ = numeric_limits<size_t>::max();
+			element_ = numeric_limits<size_t>::max();
+			set_ = nullptr;
+		}
+
+	private:
+		observer_ptr<pool_set<T, Comparer, POOL>> set_;
+		size_t bucket_;
+		size_t element_;
+	};
+
+	template<class T, class Comparer = equal_to<T>, pool_type POOL = pool_type::NonPaged>
+	struct pool_set
+	{
+		using iterator = set_iterator<T, Comparer, POOL>;
+
+		friend struct iterator;
+
+		pool_set(size_t capacity = 4)
+		{
+			if (!reserve(capacity))
+				KTL_LOG_ERROR("Failed to reserve initial set storage!\n");
+		}
+
+		[[nodiscard]] size_t size() const
+		{
+			return size_;
+		}
+
+		[[nodiscard]] size_t bucket_count() const
+		{
+			return table_.size();
+		}
+
+		[[nodiscard]] bool empty() const
+		{
+			return size() == 0;
+		}
+
+		[[nodiscard]] bool insert(T&& value)
+		{
+			if (!try_grow())
+				return false;
+
+			auto h = hash<T>{}(value);
+			auto bucketIdx = h % bucket_count();
+
+			auto& bucket = table_[bucketIdx];
+
+			KTL_LOG_TRACE("'%wZ' inserting into bucket: %llu\n", value.data(), bucketIdx);
+
+			auto it = find_if(bucket.begin(), bucket.end(), [&](const auto& element) -> bool
+				{
+					return Comparer()(element, value);
+				});
+
+			if (it == bucket.end())
+			{
+				if (!bucket.emplace_back(move(value)))
+					return false;
+
+				++size_;
+			}
+			else
+			{
+				(*it) = move(value);
+			}
+
+			return true;
+		}
+
+		template<typename key_type>
+		[[nodiscard]] iterator find(const key_type& key)
+		{
+			if (empty())
+				return end();
+
+			auto h = hash<key_type>{}(key);
+			auto bucketIdx = h % bucket_count();
+
+			auto& bucket = table_[bucketIdx];
+
+			for (size_t i = 0; i < bucket.size(); ++i)
+			{
+				auto& elementValue = bucket[i];
+				auto elementHash = hash<T>{}(elementValue);
+
+				if (h == elementHash && Comparer()(elementValue, key))
+				{
+					return iterator{ this, bucketIdx, i };
+				}
+			}
+
+			return iterator{};
+		}
+
+		iterator begin()
+		{
+			return iterator{ this };
+		}
+
+		iterator end()
+		{
+			return iterator{};
+		}
+
+		[[nodiscard]] bool reserve(size_t newCapacity)
+		{
+			if (newCapacity <= bucket_count())
+				return true;
+
+			if (!table_.resize(newCapacity))
+			{
+				KTL_LOG_ERROR("Failed to resize bucket table: %llu\n", newCapacity);
+				return false;
+			}
+
+			// Make sure the bucket allocations are all still correct.
+			auto buckets = bucket_count();
+			for (size_t i = 0; i < buckets; ++i)
+			{
+				auto& currentBucket = table_[i];
+				const auto& b = currentBucket.begin();
+				const auto& e = currentBucket.end();
+
+				KTL_LOG_TRACE("bucket: %llu\n", i);
+
+				for (auto it = b; it != e;)
+				{
+					// Move to a different bucket, if necessary.
+					auto h = hash<T>{}(*it);
+					auto correctBucketIndex = (h % buckets);
+					if (correctBucketIndex != i)
+					{
+						auto& correctBucket = table_[correctBucketIndex];
+						if (!correctBucket.emplace_back(move(*it)))
+						{
+							KTL_LOG_ERROR("Failed to move element to correct bucket on rehash\n");
+							return false;
+						}
+
+						it = currentBucket.erase(it);
+						continue;
+					}
+
+					++it;
+				}
+			}
+
+			return true;
+		}
+
+		template<typename key_type>
+		iterator erase(const key_type& key)
+		{
+			if (empty())
+				return end();
+
+			auto h = hash<key_type>{}(key);
+			auto bucketIdx = h % bucket_count();
+
+			auto& bucket = table_[bucketIdx];
+
+			auto b = bucket.begin();
+			auto e = bucket.end();
+			size_t elementIdx = 0;
+			for (auto it = b; it != e; ++it, ++elementIdx)
+			{
+				if (!Comparer()(*it, key))
+					continue;
+
+				bucket.erase(it);
+				return ++(iterator{ this, bucketIdx, elementIdx  });
+			}
+
+			return iterator{};
+		}
+
+	private:
+		/// Returns the load factor of the set. The caller *must* perform this call and any
+		/// subsequent calculations in a scope containing a ktl::floating_point_state object
+		[[nodiscard]] double load_factor() const
+		{
+			return static_cast<double>(size()) / bucket_count();
+		}
+
+		/// Returns the maximum load factor of the set. The caller *must* perform this call and any
+		/// subsequent calculations in a scope containing a ktl::floating_point_state object
+		[[nodiscard]] double max_load_factor() const
+		{
+			return 0.7;
+		}
+
+		[[nodiscard]] bool try_grow()
+		{
+			{
+				floating_point_state state;
+
+				if (load_factor() < max_load_factor())
+					return true;
+			}
+
+			KTL_LOG_TRACE("Growing set, as max load factor exceeded\n");
+
+			auto buckets = bucket_count();
+
+			if (buckets == 0)
+			{
+				return reserve(1);
+			}
+			else
+			{
+				return reserve(buckets * 2);
+			}
+		}
+
+	private:
+		size_t size_ = 0;
+		vector<vector<T, POOL>, POOL> table_;
+	};
+
+	template<typename T>
+	using set = pool_set<T, equal_to<T>, pool_type::Paged>;
+}

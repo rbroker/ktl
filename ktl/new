@@ -1,0 +1,28 @@
+#pragma once
+
+namespace ktl
+{
+	enum class pool_type
+	{
+		Paged,
+		NonPaged
+	};
+
+	[[nodiscard]] void* pool_alloc(size_t size, pool_type type);
+	void pool_free(void* p);
+}
+
+// Global pool new (*very* non-standard...)
+void* operator new(size_t n, ktl::pool_type pool);
+
+// Global pool array new
+void* operator new[](size_t n, ktl::pool_type pool);
+
+// Global placement new
+void* operator new(size_t n, void* p);
+
+// Global deletes
+void operator delete(void* p);
+void operator delete(void* p, size_t n);
+void operator delete[](void* p);
+void operator delete[](void* p, size_t n);

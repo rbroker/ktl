@@ -1,0 +1,38 @@
+#pragma once
+
+namespace ktl
+{
+	template<class InputIterator, class UnaryPredicate>
+	[[nodiscard]] InputIterator find_if(InputIterator first, InputIterator last, UnaryPredicate predicate)
+	{
+		for (auto it = first; it != last; ++it)
+		{
+			if (predicate(*it))
+				return it;
+		}
+
+		return last;
+	}
+
+	template<class T>
+	struct equal_to
+	{
+		template<class N>
+		constexpr bool operator()(const T& lhs, const N& rhs)
+		{
+			return lhs == rhs;
+		}
+	};
+
+	template<typename T>
+	[[nodiscard]] T min(T a, T b)
+	{
+		return a < b ? a : b;
+	}
+
+	template<typename T>
+	[[nodiscard]] T max(T a, T b)
+	{
+		return a > b ? a : b;
+	}
+}

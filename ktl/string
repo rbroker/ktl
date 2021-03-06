@@ -1,0 +1,364 @@
+#pragma once
+
+#include <ktl_core.h>
+#include <memory>
+#include <string_view>
+#include <type_traits>
+#include <utility>
+
+#include <ntstrsafe.h>
+
+namespace ktl
+{
+	template<pool_type POOL>
+	struct pool_unicode_string
+	{
+		static const size_t npos = MAXSIZE_T;
+
+		pool_unicode_string() :
+			str_{}
+		{
+		}
+
+		// http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p2025r1.html
+		// If we can get guaranteed copy elision for NRVO, then probably
+		// best to delete the copy constructor / assign, and see if we can move
+		// to having an explicit "copy" method instead.
+		pool_unicode_string(const pool_unicode_string& other)
+		{
+			if (!resize(other.size()))
+				return;
+
+			if (NT_ERROR(RtlUnicodeStringCopy(data(), other.data())))
+			{
+				KTL_LOG_ERROR("Failed to copy from unicode string ptr\n");
+				clear();
+			}
+		}
+
+		pool_unicode_string(const PUNICODE_STRING other) :
+			str_{}
+		{
+			if (!byte_resize(other->Length))
+				return;
+
+			if (NT_ERROR(RtlUnicodeStringCopy(&str_, other)))
+			{
+				KTL_LOG_ERROR("Failed to copy from unicode string ptr\n");
+				clear();
+			}
+		}
+
+		pool_unicode_string(unicode_string_view other) :
+			pool_unicode_string(other.data())
+		{
+		}
+
+		pool_unicode_string(PCWSTR str, size_t length = npos) :
+			pool_unicode_string(unicode_string_view{ str, length })
+		{
+		}
+
+		pool_unicode_string(pool_unicode_string&& other) :
+			buffer_(move(other.buffer_)),
+			str_(other.str_)
+		{
+			other.str_ = {};
+		}
+
+		~pool_unicode_string()
+		{
+		}
+
+		pool_unicode_string& operator=(pool_unicode_string&& other)
+		{
+			buffer_ = move(other.buffer_);
+			str_ = other.str_;
+			other.str_ = {};
+			return *this;
+		}
+
+		[[nodiscard]] size_t size() const
+		{
+			return str_.Length / sizeof(wchar_t);
+		}
+
+		[[nodiscard]] size_t byte_size() const
+		{
+			return str_.Length;
+		}
+
+		[[nodiscard]] size_t capacity() const
+		{
+			return str_.MaximumLength / sizeof(wchar_t);
+		}
+
+		[[nodiscard]] size_t byte_capacity() const
+		{
+			return str_.MaximumLength;
+		}
+
+		void clear()
+		{
+			(void)resize(0);
+		}
+
+		[[nodiscard]] size_t max_size() const
+		{
+			return NTSTRSAFE_UNICODE_STRING_MAX_CCH - 1;
+		}
+
+		[[nodiscard]] size_t max_byte_size() const
+		{
+			return max_size() * sizeof(wchar_t);
+		}
+
+		[[nodiscard]] bool empty() const
+		{
+			return size() == 0;
+		}
+
+		/// <summary>
+		/// Allocating resize function.
+		/// </summary>
+		/// <param name="newSize">The new desired length in characters of the string (excluding NULL terminator)</param>
+		/// <param name="fill">The character with which newly allocated capacity should be filled</param>
+		/// <returns>True on successful resize, else false</returns>
+		[[nodiscard]] bool resize(size_t newSize, wchar_t fill = UNICODE_NULL)
+		{
+			if (newSize > max_size())
+			{
+				KTL_LOG_ERROR("Requested string length %lu is too large. Limit is %lu.\n", newSize, max_size());
+				return false;
+			}
+
+			if (size() >= newSize) // String is being shrunk
+			{
+				str_.Length = static_cast<USHORT>(newSize * sizeof(wchar_t));
+			}
+			else if (capacity() > newSize) // String is growing, but has spare capacity we could use. Capacity always has space for a null terminator, hence >, instead of >=.
+			{
+				size_t newByteSize = newSize * sizeof(wchar_t);
+				size_t oldByteSize = byte_size();
+
+				memset(str_.Buffer + size(), fill, newByteSize - oldByteSize);
+				str_.Length = static_cast<USHORT>(newByteSize);
+			}
+			else // String is growing beyond existing capacity, requires reallocation.
+			{
+				size_t newByteCapacity = (newSize + 1) * sizeof(wchar_t);
+
+				ktl::unique_ptr<wchar_t[]> tmp{ new (POOL) wchar_t[newSize + 1] };
+				if (!tmp)
+				{
+					KTL_LOG_ERROR("Failed to allocate memory for unique_ptr\n");
+					return false;
+				}
+
+				if (str_.Length > 0)
+				{
+					if (NT_ERROR(RtlStringCchCopyW(tmp.get(), newSize + 1, str_.Buffer)))
+					{
+						KTL_LOG_ERROR("Copying string into temporary buffer failed\n");
+						return false;
+					}
+				}
+
+				buffer_.reset(tmp.release());
+				str_.Buffer = static_cast<PWCH>(buffer_.get());
+
+				memset(str_.Buffer + size(), fill, newByteCapacity - byte_size());
+
+				str_.Length = static_cast<USHORT>(newSize * sizeof(wchar_t));
+				str_.MaximumLength = static_cast<USHORT>(newByteCapacity);
+			}
+
+			return true;
+		}
+
+		/// <summary>
+		/// Allocating substring function. Will return an empty string on failure.
+		/// </summary>
+		/// <param name="pos">The character index to begin_ the substring</param>
+		/// <param name="count">Length of the substring to return, in characters of npos for the whole remaining input</param>
+		/// <returns>The substring, or an empty string on error</returns>
+		constexpr pool_unicode_string substr(size_t pos = 0, size_t count = npos)
+		{
+			KTL_LOG_TRACE("Creating substring from position %lu, of length %lu\n", pos, count);
+
+			if (pos > size())
+			{
+				KTL_LOG_ERROR("Requested start position beyond end_ of string\n");
+				return {};
+			}
+
+			if (count == npos || ((pos + count) > size()))
+				count = size() - pos;
+
+			pool_unicode_string sub;
+			if (!sub.resize(count))
+			{
+				KTL_LOG_ERROR("Failed to resize substring to %lu\n", count);
+				return {};
+			}
+
+			if (RtlUnicodeStringCchCopyStringN(&sub, buffer_.get() + pos, count) != STATUS_SUCCESS)
+			{
+				KTL_LOG_ERROR("Failed to copy source characters to substring\n");
+				return {};
+			}
+
+			return sub;
+		}
+
+		template<typename string_type>
+		pool_unicode_string& append(const string_type& str)
+		{
+			if (!byte_reserve(byte_size() + str.byte_size()))
+			{
+				KTL_LOG_ERROR("Unable to resize string from %lu -> %lu\n", size(), size() + str.size());
+				return *this;
+			}
+
+			if (!RtlUnicodeStringCchCatN(&str_, &str, str.size()))
+				KTL_LOG_ERROR("String concatenaton failed\n");
+
+			return *this;
+		}
+
+		pool_unicode_string& append(const wchar_t* str)
+		{
+			unicode_string_view view{ str };
+			return append(view);
+		}
+
+		template<typename string_type>
+		pool_unicode_string& operator+=(const string_type& str)
+		{
+			return append(str);
+		}
+
+		template<typename string_type>
+		pool_unicode_string operator+(const string_type& str)
+		{
+			pool_unicode_string concatenated;
+
+			concatenated.append(*this);
+			concatenated.append(str);
+
+			return concatenated;
+		}
+
+		[[nodiscard]] bool byte_reserve(size_t newSize)
+		{
+			if (newSize > max_byte_size())
+			{
+				KTL_LOG_ERROR("Requested string capacity %lu is too large. Limit is %lu.\n", newSize, max_byte_size());
+				return false;
+			}
+
+			if (byte_capacity() >= newSize) // String has enough space for the requested size.
+			{
+				return true;
+			}
+			else // String is growing beyond existing capacity, requires reallocation.
+			{
+				size_t newByteCapacity = (newSize + 1) * sizeof(wchar_t);
+
+				ktl::unique_ptr<wchar_t[]> tmp{ new (POOL) wchar_t[newSize + 1] };
+				if (!tmp)
+				{
+					KTL_LOG_ERROR("Failed to allocate memory for unique_ptr\n");
+					return false;
+				}
+
+				if (str_.Length > 0)
+				{
+					if (NT_ERROR(RtlStringCbCopyW(tmp.get(), newSize + 1, str_.Buffer)))
+					{
+						KTL_LOG_ERROR("Copying string into temporary buffer failed\n");
+						return false;
+					}
+				}
+
+				buffer_.reset(tmp.release());
+				str_.Buffer = static_cast<PWCH>(buffer_.get());
+				str_.MaximumLength = static_cast<USHORT>(newByteCapacity);
+			}
+
+			return true;
+		}
+
+		/// <summary>
+		/// Allocating resize function.
+		/// </summary>
+		/// <param name="newSize">The new desired length in bytes of the string</param>
+		/// <param name="fill">The character with which newly allocated capacity should be filled</param>
+		/// <returns>True on successful resize, else false</returns>
+		[[nodiscard]] bool byte_resize(size_t newSize, wchar_t fill = UNICODE_NULL)
+		{
+			return resize(newSize / sizeof(wchar_t), fill);
+		}
+
+		constexpr [[nodiscard]] PCUNICODE_STRING data() const
+		{
+			return &str_;
+		}
+
+		[[nodiscard]] PUNICODE_STRING data()
+		{
+			return &str_;
+		}
+
+		[[nodiscard]] PWCH c_str()
+		{
+			return str_.Buffer;
+		}
+
+		constexpr [[nodiscard]] PCWCH c_str() const
+		{
+			return str_.Buffer;
+		}
+
+		[[nodiscard]] constexpr PCUNICODE_STRING operator&() const
+		{
+			return data();
+		}
+
+		[[nodiscard]] PUNICODE_STRING operator&()
+		{
+			return data();
+		}
+
+		constexpr bool operator==(const pool_unicode_string& other) const
+		{
+			return compare(other) == 0;
+		}
+
+		constexpr bool operator==(const unicode_string_view& other) const
+		{
+			return compare(other) == 0;
+		}
+
+		template<class T>
+		constexpr int compare(const T& other, bool caseInsensitive = false) const
+		{
+			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
+		}
+
+	private:
+		unique_ptr<wchar_t[]> buffer_;
+		UNICODE_STRING str_;
+	};
+
+	using unicode_string = pool_unicode_string<pool_type::Paged>;
+
+	template<>
+	struct hash<unicode_string>
+	{
+		[[nodiscard]] hash_t operator()(const unicode_string& value) const
+		{
+			return wyhash(value.c_str(), value.byte_size(), 0, _wyp);
+		}
+	};
+}

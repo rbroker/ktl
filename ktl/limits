@@ -1,0 +1,70 @@
+#pragma once
+
+#include <ktl_core.h>
+#include <cstdint>
+
+namespace ktl
+{
+	template<typename T>
+	struct numeric_limits
+	{
+		[[nodiscard]] static constexpr T min() { return T(); }
+		[[nodiscard]] static constexpr T max() { return T(); }
+	};
+
+	template<>
+	struct numeric_limits<int8_t>
+	{
+		[[nodiscard]] static constexpr int8_t min() { return MININT8; }
+		[[nodiscard]] static constexpr int8_t max() { return MAXINT8; }
+	};
+
+	template<>
+	struct numeric_limits<int16_t>
+	{
+		[[nodiscard]] static constexpr int16_t min() { return MININT16; }
+		[[nodiscard]] static constexpr int16_t max() { return MAXINT16; }
+	};
+
+	template<>
+	struct numeric_limits<int32_t>
+	{
+		[[nodiscard]] static constexpr int32_t min() { return MININT32; }
+		[[nodiscard]] static constexpr int32_t max() { return MAXINT32; }
+	};
+
+	template<>
+	struct numeric_limits<int64_t>
+	{
+		[[nodiscard]] static constexpr int64_t min() { return MININT64; }
+		[[nodiscard]] static constexpr int64_t max() { return MAXINT64; }
+	};
+
+	template<>
+	struct numeric_limits<uint8_t>
+	{
+		[[nodiscard]] static constexpr uint8_t min() { return 0; }
+		[[nodiscard]] static constexpr uint8_t max() { return MAXUINT8; }
+	};
+
+	template<>
+	struct numeric_limits<uint16_t>
+	{
+		[[nodiscard]] static constexpr uint16_t min() { return 0; }
+		[[nodiscard]] static constexpr uint16_t max() { return MAXUINT16; }
+	};
+
+	template<>
+	struct numeric_limits<uint32_t>
+	{
+		[[nodiscard]] static constexpr uint32_t min() { return 0; }
+		[[nodiscard]] static constexpr uint32_t max() { return MAXUINT32; }
+	};
+
+	template<>
+	struct numeric_limits<uint64_t>
+	{
+		[[nodiscard]] static constexpr uint64_t min() { return 0; }
+		[[nodiscard]] static constexpr uint64_t max() {	return MAXUINT64; }
+	};
+}

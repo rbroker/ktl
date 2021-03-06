@@ -1,0 +1,71 @@
+#pragma once
+
+#include <ktl_core.h>
+
+namespace ktl
+{
+	template<typename TFirst, typename TSecond>
+	struct pair
+	{
+		pair()
+		{
+		}
+
+		pair(TFirst&& a, TSecond&& b) :
+			first(move(a)),
+			second(move(b))
+		{
+		}
+
+		pair(pair&& other) :
+			first(other.first),
+			second(other.second)
+		{
+
+		}
+
+		pair& operator=(pair&& other)
+		{
+			first = move(other.first);
+			second = move(other.second);
+			return *this;
+		}
+
+		TFirst first;
+		TSecond second;
+	};
+
+	template<typename Fn>
+	struct [[nodiscard]] scope_exit
+	{
+		scope_exit(Fn&& fn) :
+			fn_(move(fn))
+		{
+		}
+
+		scope_exit(const scope_exit&) = delete;
+
+		scope_exit(scope_exit&& other) :
+			fn_(move(other.fn_))
+		{
+			other.release();
+		}
+
+		~scope_exit()
+		{
+			if (!active_)
+				return;
+
+			fn_();
+		}
+
+		void release()
+		{
+			active_ = false;
+		}
+
+	private:
+		bool active_ = true;
+		Fn fn_;
+	};
+}

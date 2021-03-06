@@ -1,0 +1,36 @@
+;
+; ktl_test.inf
+;
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=SoftwareComponent
+ClassGuid={5c4c3332-344d-483c-8739-259e934c9cc8}
+Provider=%Author%
+DriverVer=
+CatalogFile=ktl_test.cat
+PnpLockDown=1
+
+[DestinationDirs]
+DefaultDestDir = 13
+
+[DefaultInstall.NTamd64]
+CopyFiles = ktl_test.DriverFiles
+
+[DefaultInstall.NTx86]
+CopyFiles = ktl_test.DriverFiles
+
+[SourceDisksNames]
+1 = %DiskName%,,,""
+
+[SourceDisksFiles]
+ktl_test.sys = 1,,
+
+[ktl_test.DriverFiles]
+%DriverName%.sys
+
+[Strings]
+Author="Richard Broker"
+ClassName=""
+DriverName="ktl_test"
+DiskName="ktl_test Source Disk"

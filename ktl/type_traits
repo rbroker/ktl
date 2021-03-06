@@ -1,0 +1,129 @@
+#pragma once
+
+#include <hash_impl.h>
+
+namespace ktl
+{
+	// ktl::remove_reference
+	template<class T>
+	struct remove_reference
+	{
+		using type = T;
+	};
+
+	template<class T>
+	struct remove_reference<T&>
+	{
+		using type = T;
+	};
+
+	template<class T>
+	struct remove_reference<T&&>
+	{
+		using type = T;
+	};
+
+	template<class T>
+	using remove_reference_t = typename remove_reference<T>::type;
+
+	// ktl::move
+	template<class T>
+	[[nodiscard]] constexpr remove_reference_t<T>&& move(T&& arg)
+	{
+		return static_cast<remove_reference_t<T>&&>(arg);
+	}
+
+	// ktl::forward
+	template<class T>
+	[[nodiscard]] constexpr T&& forward(remove_reference_t<T>& arg)
+	{
+		return static_cast<T&&>(arg);
+	}
+
+	template<class T>
+	[[nodiscard]] constexpr T&& forward(remove_reference_t<T>&& arg)
+	{
+		return static_cast<T&&>(arg);
+	}
+
+	// ktl::enable_if
+	template<bool HasType, class T = void>
+	struct enable_if {};
+
+	template<class T>
+	struct enable_if<true, T>
+	{
+		using type = T;
+	};
+
+	template<bool HasType, class T = void>
+	using enable_if_t = typename enable_if<HasType, T>::type;
+
+	// ktl::is_array
+	template<class>
+	constexpr bool is_array_v = false;
+
+	template<class T, size_t N>
+	constexpr bool is_array_v<T[N]> = true;
+
+	template<class T>
+	constexpr bool is_array_v<T[]> = true;
+
+	// ktl::extent
+	template<class T, unsigned int I = 0>
+	constexpr size_t extent_v = 0;
+
+	template<class T, size_t N>
+	constexpr size_t extent_v<T[N], 0> = N;
+
+	template<class T, unsigned int I, size_t N>
+	constexpr size_t extent_v<T[N], I> = extent_v<T, I - 1>;
+
+	template<class T, unsigned int I>
+	constexpr size_t extent_v<T[], I> = extent_v<T, I - 1>;
+
+	template<class T, unsigned int I = 0>
+	struct extent
+	{
+		constexpr operator T() const
+		{
+			return extent_v<T, I>;
+		}
+
+		constexpr T operator()() const
+		{
+			return extent_v<T, I>;
+		}
+	};
+
+	// ktl::remove_extent
+	template<class T>
+	struct remove_extent
+	{
+		using type = T;
+	};
+
+	template<class T, size_t I>
+	struct remove_extent<T[I]>
+	{
+		using type = T;
+	};
+
+	template<class T>
+	struct remove_extent<T[]>
+	{
+		using type = T;
+	};
+
+	template<class T>
+	using remove_extent_t = typename remove_extent<T>::type;
+
+	// hash
+	using hash_t = uint64_t;
+
+	template<typename T>
+	struct hash
+	{
+		[[nodiscard]] hash_t operator()(T) const { return 0; }
+	};
+}

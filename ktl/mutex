@@ -1,0 +1,89 @@
+#pragma once
+
+#include <ktl_core.h>
+#include <memory>
+
+namespace ktl
+{
+	struct mutex
+	{
+		mutex()
+		{
+			// According to sample code, FAST_MUTEX must always be from non-paged memory, although
+			// the docs are unclear on this, it's the same restriction as ERESOURCE so I'm inclined
+			// to believe it.
+			mtx_ = make_unique<FAST_MUTEX>(pool_type::NonPaged);
+			if (!mtx_)
+			{
+				KTL_LOG_ERROR("Failed to allocate memory for fast mutex\n");
+				return;
+			}
+
+			ExInitializeFastMutex(native_handle());
+		}
+
+		mutex(const mutex&) = delete;
+		mutex& operator=(const mutex&) = delete;
+
+		~mutex()
+		{
+		}
+
+		void* operator new(size_t count)
+		{
+			return pool_alloc(count, pool_type::NonPaged);
+		}
+
+		/// <summary>
+		/// Indicates whether this object was successfully initialzied.
+		/// </summary>
+		explicit operator bool() const
+		{
+			return native_handle() != nullptr;
+		}
+
+		void lock()
+		{
+			ExAcquireFastMutex(native_handle());
+		}
+
+		[[nodiscard]] bool try_lock()
+		{
+			return (ExTryToAcquireFastMutex(native_handle()) == TRUE);
+		}
+
+		void unlock()
+		{
+			ExReleaseFastMutex(native_handle());
+		}
+
+		PFAST_MUTEX native_handle() const
+		{
+			return mtx_.get();
+		}
+
+	private:
+		unique_ptr<FAST_MUTEX> mtx_ = nullptr;
+	};
+
+	template<class mutex_type>
+	struct [[nodiscard]] scoped_lock
+	{
+		explicit scoped_lock(mutex_type& m) :
+			m_(m)
+		{
+			m_.lock();
+		}
+
+		scoped_lock(const scoped_lock&) = delete;
+		scoped_lock& operator=(const scoped_lock&) = delete;
+
+		~scoped_lock()
+		{
+			m_.unlock();
+		}
+
+	private:
+		mutex_type& m_;
+	};
+}

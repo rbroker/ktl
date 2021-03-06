@@ -1,0 +1,359 @@
+#pragma once
+
+#include <ktl_core.h>
+#include <memory>
+#include <type_traits>
+
+namespace ktl
+{
+	template<typename T, pool_type POOL>
+	struct list_element
+	{
+		using value_type = T;
+
+		list_element()
+		{
+		}
+
+		list_element(const T& value) :
+			Value{ value }
+		{
+		}
+
+		list_element(T&& value) :
+			Value{value}
+		{
+		}
+
+		template<class... Args>
+		list_element(Args&&... args) :
+			Value{ args... }
+		{
+		}
+
+		void* operator new(size_t count)
+		{
+			return pool_alloc(count, POOL);
+		}
+
+		LIST_ENTRY Entry = {};
+		value_type Value;
+	};
+
+	template<typename element_type>
+	struct list_iterator
+	{
+		using value_type = typename element_type::value_type;
+		using reference = value_type&;
+		using pointer = value_type*;
+
+		template<typename value_type, pool_type POOL>
+		friend struct list;
+
+		list_iterator(const PLIST_ENTRY head) :
+			head_(head)
+		{
+			curr_ = head_->Flink;
+		}
+
+		list_iterator(PLIST_ENTRY head, PLIST_ENTRY curr) :
+			head_(head),
+			curr_(curr)
+		{
+		}
+
+		list_iterator() :
+			head_(nullptr),
+			curr_(nullptr)
+		{
+		}
+
+		list_iterator(const list_iterator& other) :
+			list_iterator(other.head_, other.curr_)
+		{
+		}
+
+		[[nodiscard]] reference operator*() const
+		{
+			element_type* ptr = (CONTAINING_RECORD(curr_, element_type, Entry));
+			return ptr->Value;
+		}
+
+		[[nodiscard]] pointer operator->() const
+		{
+			element_type* ptr = (CONTAINING_RECORD(curr_, element_type, Entry));
+			return addressof(ptr->Value);
+		}
+
+		list_iterator& operator++()
+		{
+			auto next = curr_->Flink;
+
+			if (next == head_) // End of list.
+			{
+				curr_ = nullptr;
+			}
+			else
+			{
+				curr_ = next;
+			}
+
+			return *this;
+		}
+
+		list_iterator operator++(int)
+		{
+			list_iterator tmp = *this;
+			++(*this);
+			return tmp;
+		}
+
+		list_iterator& operator--()
+		{
+			auto prev = curr_->Blink;
+
+			if (prev == head_)
+			{
+				curr_ = nullptr;
+			}
+			else
+			{
+				curr_ = prev;
+			}
+
+			return *this;
+		}
+
+		list_iterator operator--(int)
+		{
+			list_iterator tmp = *this;
+			--(*this);
+			return tmp;
+		}
+
+		[[nodiscard]] bool operator==(const list_iterator& other) const
+		{
+			return curr_ == other.curr_;
+		}
+
+		[[nodiscard]] bool operator!=(const list_iterator& other) const
+		{
+			return !(*this == other);
+		}
+
+	private:
+		const PLIST_ENTRY head_;
+		PLIST_ENTRY curr_;
+	};
+
+	template<typename T, pool_type POOL = pool_type::Paged>
+	struct list
+	{
+		using element_type = list_element<T, POOL>;
+		using iterator = list_iterator<element_type>;
+
+		list()
+		{
+			InitializeListHead(&head_);
+		}
+
+		~list()
+		{
+			clear();
+		}
+
+		void* operator new(size_t count)
+		{
+			return pool_alloc(count, POOL);
+		}
+
+		/// <summary>
+		/// push element to back of list.
+		/// </summary>
+		/// <param name="value">new value</param>
+		/// <returns>true if element successfully added, else false</returns>
+		[[nodiscard]] bool push_back(const T& value)
+		{
+			auto newElement = new element_type(value);
+			if (!newElement)
+				return false;
+
+			InsertTailList(&head_, &(newElement->Entry));
+
+			++size_;
+			return true;
+		}
+
+		/// <summary>
+		/// push element to back of list.
+		/// </summary>
+		/// <param name="value">new value</param>
+		/// <returns>true if element successfully added, else false</returns>
+		[[nodiscard]] bool push_back(T&& value)
+		{
+			auto newElement = new element_type(value);
+			if (!newElement)
+				return false;
+
+			InsertTailList(&head_, &(newElement->Entry));
+
+			++size_;
+			return true;
+		}
+
+		/// <summary>
+		/// emplace element to back of list.
+		/// </summary>
+		/// <param name="...args">construction arguments for the added element</param>
+		/// <returns>Returns an observer_ptr to the emplaced object, or an empty (nullptr) observer_ptr</returns>
+		template<class... Args>
+		observer_ptr<T> emplace_back(Args&&... args)
+		{
+			auto newElement = new element_type(forward<Args>(args)...);
+			if (!newElement)
+				return {};
+
+			InsertTailList(&head_, &(newElement->Entry));
+
+			++size_;
+
+			return observer_ptr<T>{ &newElement->Value };
+		}
+
+		iterator erase(iterator it)
+		{
+			PLIST_ENTRY curr = it.curr_;
+			PLIST_ENTRY next = curr->Flink;
+
+			BOOLEAN lastEntry = RemoveEntryList(curr);
+
+			--size_;
+			delete CONTAINING_RECORD(curr, element_type, Entry);
+
+			if (!lastEntry)
+			{
+				return iterator{ &head_, next };
+			}
+			else
+			{
+				return iterator{};
+			}
+		}
+
+		/// <summary>
+		/// push element to front of list.
+		/// </summary>
+		/// <param name="value">new value</param>
+		/// <returns>true if element successfully added, else false</returns>
+		[[nodiscard]] bool push_front(const T& value)
+		{
+			auto newElement = new element_type(value);
+			if (!newElement)
+				return false;
+
+			InsertHeadList(&head_, &(newElement->Entry));
+
+			++size_;
+			return true;
+		}
+
+		/// <summary>
+		/// push element to front of list.
+		/// </summary>
+		/// <param name="value">new value</param>
+		/// <returns>true if element successfully added, else false</returns>
+		[[nodiscard]] bool push_front(T&& value)
+		{
+			auto newElement = new element_type(value);
+			if (!newElement)
+				return false;
+
+			InsertHeadList(&head_, &(newElement->Entry));
+
+			++size_;
+			return true;
+		}
+
+		/// <summary>
+		/// emplace element to front of list.
+		/// </summary>
+		/// <param name="...args">construction arguments for the added element</param>
+		/// <returns>Returns an observer_ptr to the emplaced object, or an empty (nullptr) observer_ptr</returns>
+		template<class... Args>
+		observer_ptr<T> emplace_front(Args&&... args)
+		{
+			auto newElement = new element_type(foward<Args>(args)...);
+			if (!newElement)
+				return {};
+
+			InsertHeadList(&head_, &(newElement->Entry));
+
+			++size_;
+
+			return observer_ptr<T>{&newElement->Value};
+		}
+
+		void pop_back()
+		{
+			auto oldTail = RemoveTailList(&head_);
+			delete CONTAINING_RECORD(oldTail, element_type, Entry);
+
+			--size_;
+		}
+
+		void pop_front()
+		{
+			auto oldHead = RemoveHeadList(&head_);
+			delete CONTAINING_RECORD(oldHead, element_type, Entry);
+
+			--size_;
+		}
+
+		[[nodiscard]] T& back()
+		{
+			return CONTAINING_RECORD(head_->Blink, element_type, Entry)->Value;
+		}
+
+		[[nodiscard]] T& front()
+		{
+			return CONTAINING_RECORD(head_->Flink, element_type, Entry)->Value;
+		}
+
+		[[nodiscard]] size_t size() const
+		{
+			return size_;
+		}
+
+		[[nodiscard]] bool empty() const
+		{
+			return size_ == 0;
+		}
+
+		void clear()
+		{
+			while (!empty())
+			{
+				pop_back();
+			}
+		}
+
+		[[nodiscard]] iterator begin()
+		{
+			if (empty())
+			{
+				return end();
+			}
+
+			return iterator{ &head_ };
+		}
+
+		[[nodiscard]] iterator end()
+		{
+			return iterator{};
+		}
+
+	private:
+		size_t size_ = 0;
+		LIST_ENTRY head_;
+	};
+}

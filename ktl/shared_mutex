@@ -1,0 +1,151 @@
+#pragma once
+
+#include <ktl_core.h>
+#include <memory>
+
+namespace ktl
+{
+	struct shared_mutex
+	{
+		shared_mutex()
+		{
+			// ERESOURCE must always be allocated from the non-paged pool, according to docs.
+			resource_ = make_unique<ERESOURCE>(pool_type::NonPaged);
+			if (!resource_)
+			{
+				KTL_LOG_ERROR("Failed to allocate memory for shared_mutex.\n");
+				return;
+			}
+
+			if (NT_ERROR(ExInitializeResourceLite(native_handle())))
+				KTL_LOG_ERROR("Failed to initialize resource for shared_mutex\n");
+		}
+
+		shared_mutex(const shared_mutex&) = delete;
+		shared_mutex& operator=(const shared_mutex&) = delete;
+
+		~shared_mutex()
+		{
+			if (!resource_)
+				return;
+
+			KeEnterCriticalRegion();
+
+			while (ExIsResourceAcquiredLite(native_handle()))
+			{
+				KTL_LOG_WARNING("Destroying locked resource!\n");
+				unlock();
+			}
+
+			KTL_REQUIRE_SUCCESS(ExDeleteResourceLite(native_handle()));
+			KeLeaveCriticalRegion();
+		}
+
+		/// <summary>
+		/// Indicates whether this object was successfully initialzied.
+		/// </summary>
+		explicit operator bool() const
+		{
+			return native_handle() != nullptr;
+		}
+
+		void* operator new(size_t count)
+		{
+			return pool_alloc(count, pool_type::NonPaged);
+		}
+
+		void lock()
+		{
+			KeEnterCriticalRegion();
+			ExAcquireResourceExclusiveLite(native_handle(), TRUE);
+		}
+
+		bool try_lock()
+		{
+			KeEnterCriticalRegion();
+
+			if (ExAcquireResourceExclusiveLite(native_handle(), FALSE) == TRUE)
+				return true;
+
+			KeLeaveCriticalRegion();
+			return false;
+		}
+
+		void unlock()
+		{
+			ExReleaseResourceLite(native_handle());
+			KeLeaveCriticalRegion();
+		}
+
+		void lock_shared()
+		{
+			KeEnterCriticalRegion();
+			ExAcquireResourceSharedLite(native_handle(), TRUE);
+		}
+
+		bool try_lock_shared()
+		{
+			KeEnterCriticalRegion();
+
+			if (ExAcquireResourceSharedLite(native_handle(), FALSE) == TRUE)
+				return true;
+
+			KeLeaveCriticalRegion();
+			return false;
+		}
+
+		void unlock_shared()
+		{
+			unlock();
+		}
+
+		PERESOURCE native_handle() const
+		{
+			return resource_.get();
+		}
+
+	private:
+		unique_ptr<ERESOURCE> resource_ = nullptr;
+	};
+
+	template<class mutex_type>
+	struct [[nodiscard]] shared_lock
+	{
+		explicit shared_lock(mutex_type& m) :
+			m_(m)
+		{
+			m_.lock_shared();
+		}
+
+		shared_lock(const shared_lock&) = delete;
+		shared_lock& operator=(const shared_lock&) = delete;
+
+		~shared_lock()
+		{
+			unlock();
+		}
+
+		void lock()
+		{
+			m_.lock_shared();
+		}
+
+		bool try_lock()
+		{
+			return m_.try_lock_shared();
+		}
+
+		void unlock()
+		{
+			m_.unlock_shared();
+		}
+
+		bool owns_lock() const
+		{
+			return ExIsResourceAcquiredLite(m_.native_handle()) > 0;
+		}
+
+	private:
+		mutex_type& m_;
+	};
+}

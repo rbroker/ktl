@@ -1,0 +1,121 @@
+#pragma once
+
+#include "ktl_core.h"
+#include <memory>
+#include <string_view>
+
+namespace ktl
+{
+	/// <summary>
+	///  Helper to save & restore x87 floating point state.
+	/// </summary>
+	struct [[nodiscard]] floating_point_state
+	{
+		floating_point_state()
+		{
+			if (NT_ERROR(KeSaveExtendedProcessorState(XSTATE_MASK_LEGACY_FLOATING_POINT, &state_)))
+				KTL_LOG_ERROR("Failed to save floating point state!\n");
+		}
+
+		~floating_point_state()
+		{
+			KeRestoreExtendedProcessorState(&state_);
+		}
+
+	private:
+		XSTATE_SAVE state_;
+	};
+
+	/// <summary>
+	/// IRP which will complete itself with the current value of `status` when
+	/// it is destroyed.
+	/// </summary>
+	struct [[nodiscard]] auto_irp
+	{
+		auto_irp(const NTSTATUS& status, const PIRP irp) :
+			irp_(irp),
+			status_(status)
+		{
+		}
+
+		~auto_irp()
+		{
+			irp_->IoStatus.Status = status_;
+			IoCompleteRequest(irp_, IO_NO_INCREMENT);
+		}
+
+		PIO_STACK_LOCATION get()
+		{
+			if (!current_)
+			{
+				current_ = IoGetCurrentIrpStackLocation(irp_);
+			}
+
+			return current_.get();
+		}
+
+	private:
+		observer_ptr<IO_STACK_LOCATION> current_;
+		const PIRP irp_;
+		const NTSTATUS& status_;
+	};
+
+	struct safe_user_buffer
+	{
+		safe_user_buffer(PCHAR buffer, ULONG length, LOCK_OPERATION operation)
+		{
+			mdl_ = IoAllocateMdl(buffer, length, FALSE, TRUE, nullptr);
+
+			__try
+			{
+				MmProbeAndLockPages(mdl_, UserMode, operation);
+			}
+			__except (EXCEPTION_EXECUTE_HANDLER)
+			{
+				KTL_LOG_ERROR("Failed to probe and lock user buffer pages: %#x", GetExceptionCode());
+				return;
+			}
+
+			buffer_ = MmGetSystemAddressForMdlSafe(mdl_, NormalPagePriority | MdlMappingNoExecute);
+		}
+
+		PVOID get()
+		{
+			return buffer_;
+		}
+
+		explicit operator bool() const
+		{
+			return buffer_ != nullptr;
+		}
+
+		~safe_user_buffer()
+		{
+			if (!mdl_)
+				return;
+
+			MmUnlockPages(mdl_);
+			IoFreeMdl(mdl_);
+		}
+
+	private:
+		PVOID buffer_ = nullptr;
+		PMDL mdl_ = nullptr;
+	};
+
+	struct object_attributes
+	{
+		object_attributes(unicode_string_view name, ULONG attributes = OBJ_CASE_INSENSITIVE | OBJ_KERNEL_HANDLE, unicode_string_view root = {}, unicode_string_view securityDescriptor = {})
+		{
+			InitializeObjectAttributes(&attributes_, &name, attributes, &root, &securityDescriptor);
+		}
+
+		POBJECT_ATTRIBUTES operator&()
+		{
+			return &attributes_;
+		}
+
+	private:
+		OBJECT_ATTRIBUTES attributes_;
+	};
+}

@@ -1,0 +1,6 @@
+#pragma once
+
+namespace ktl
+{
+	using nullptr_t = decltype(nullptr);
+}

@@ -1,0 +1,268 @@
+#pragma once
+
+#include <ktl_core.h>
+#include <new>
+#include <type_traits>
+
+namespace ktl
+{
+	template <class T>
+	[[nodiscard]] constexpr T* addressof(T& value) noexcept {
+		return __builtin_addressof(value);
+	}
+
+	// Scalar unique_ptr
+	template<class T>
+	struct unique_ptr
+	{
+		using pointer = remove_reference_t<T>*;
+
+		unique_ptr()
+		{
+		}
+
+		unique_ptr(pointer p)
+		{
+			reset(p);
+		}
+
+		unique_ptr(unique_ptr&& other)
+		{
+			reset(other.release());
+		}
+
+		unique_ptr& operator=(unique_ptr&& other)
+		{
+			reset(other.release());
+			return *this;
+		}
+
+		pointer operator->() const
+		{
+			return p_;
+		}
+
+		explicit operator bool() const
+		{
+			return p_ != nullptr;
+		}
+
+		unique_ptr(const unique_ptr&) = delete;
+		unique_ptr& operator=(const unique_ptr&) = delete;
+
+		~unique_ptr()
+		{
+			reset();
+		}
+
+		[[nodiscard]] pointer get() const
+		{
+			return p_;
+		}
+
+		void reset(pointer newPtr = nullptr)
+		{
+			pointer oldPtr = p_;
+			p_ = newPtr;
+
+			if (oldPtr != nullptr)
+			{
+				delete oldPtr;
+				oldPtr = nullptr;
+			}
+		}
+
+		pointer release()
+		{
+			pointer p = p_;
+			p_ = nullptr;
+			return p;
+		}
+
+	private:
+		pointer p_ = nullptr;
+	};
+
+	// Array unique_ptr
+	template<class T>
+	struct unique_ptr<T[]>
+	{
+		using pointer = remove_reference_t<remove_extent_t<T>>*;
+		using reference = remove_reference_t<remove_extent_t<T>>&;
+		using element_type = T;
+
+		unique_ptr()
+		{
+		}
+
+		unique_ptr(pointer p)
+		{
+			reset(p);
+		}
+
+		unique_ptr(unique_ptr&& other)
+		{
+			reset(other.release());
+		}
+
+		unique_ptr& operator=(unique_ptr&& other)
+		{
+			reset(other.release());
+			return *this;
+		}
+
+		pointer operator->() const
+		{
+			return p_;
+		}
+
+		explicit operator bool() const
+		{
+			return p_ != nullptr;
+		}
+
+		unique_ptr(const unique_ptr&) = delete;
+		unique_ptr& operator=(const unique_ptr&) = delete;
+
+		~unique_ptr()
+		{
+			reset();
+		}
+
+		[[nodiscard]] pointer get() const
+		{
+			return p_;
+		}
+
+		void reset(element_type* newPtr = nullptr)
+		{
+			element_type* oldPtr = p_;
+			p_ = newPtr;
+
+			if (oldPtr != nullptr)
+			{
+				delete[] oldPtr;
+				oldPtr = nullptr;
+			}
+		}
+
+		pointer release()
+		{
+			pointer p = p_;
+			p_ = nullptr;
+			return p;
+		}
+
+		reference operator[](size_t index)
+		{
+			return p_[index];
+		}
+
+	private:
+		pointer p_ = nullptr;
+	};
+
+	template<typename T>
+	struct observer_ptr
+	{
+		using value_type = remove_extent_t<remove_reference_t<T>>;
+		using pointer = value_type*;
+		using reference = value_type&;
+
+		observer_ptr() :
+			p_(nullptr)
+		{
+		}
+
+		observer_ptr(const pointer p) :
+			p_(p)
+		{
+		}
+
+		observer_ptr(const observer_ptr& other) :
+			p_(other.p_)
+		{
+		}
+
+		observer_ptr& operator=(const observer_ptr& other)
+		{
+			p_ = other.p_;
+			return *this;
+		}
+
+		observer_ptr& operator=(pointer p)
+		{
+			reset(p);
+			return *this;
+		}
+
+		reference operator*() const
+		{
+			return *p_;
+		}
+
+		pointer operator->() const
+		{
+			return p_;
+		}
+
+		pointer* operator&() const
+		{
+			return &p_;
+		}
+
+		explicit operator bool() const
+		{
+			return p_ != nullptr;
+		}
+
+		pointer get() const
+		{
+			return p_;
+		}
+
+		void reset(pointer newPtr = nullptr)
+		{
+			p_ = newPtr;
+		}
+
+		pointer release()
+		{
+			pointer tmp = p_;
+			p_ = nullptr;
+			return tmp;
+		}
+
+		[[nodiscard]] bool has_value() const
+		{
+			return p_ != nullptr;
+		}
+
+		[[nodiscard]] value_type& value()
+		{
+			return *p_;
+		}
+
+		[[nodiscard]] bool operator==(const observer_ptr<T>& other) const
+		{
+			return p_ == other.p_;
+		}
+
+	private:
+		pointer p_;
+	};
+
+	// ktl::make_unique - scalar
+	template<class T, class... Args, enable_if_t<!is_array_v<T>, int> = 0>
+	[[nodiscard]] unique_ptr<T> make_unique(Args&&... args, pool_type pool = pool_type::NonPaged)
+	{
+		return unique_ptr<T>(new (pool) T(forward<Args>(args)...));
+	}
+
+	// ktl::make_unique - array
+	template<class T, class... Args, enable_if_t<is_array_v<T> && extent_v<T> == 0, int> = 0>
+	[[nodiscard]] unique_ptr<T> make_unique(size_t size, pool_type pool = pool_type::NonPaged)
+	{
+		return unique_ptr<T>(new (pool) remove_extent_t<T>[size]());
+	}
+}

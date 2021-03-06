@@ -1,0 +1,156 @@
+#pragma once
+
+#include <ktl_core.h>
+#include <ntstrsafe.h>
+
+#include <algorithm>
+#include <type_traits>
+#include <hash_impl.h>
+
+namespace ktl
+{
+	struct unicode_string_view
+	{
+		static const size_t npos = MAXSIZE_T;
+
+		constexpr unicode_string_view():
+			str_ {}
+		{
+		}
+
+		constexpr unicode_string_view(PUNICODE_STRING str)
+		{
+			if (str == nullptr)
+				str_ = {};
+			else
+				str_ = *str;
+		}
+
+		unicode_string_view(PCWSTR str, size_t length = npos)
+		{
+			size_t inputLength;
+			if (NT_ERROR(RtlStringCbLengthW(str, NTSTRSAFE_MAX_CCH * sizeof(wchar_t), &inputLength)))
+			{
+				KTL_LOG_ERROR("Failed to determine input string length (in bytes)\n");
+				return;
+			}
+
+			str_.Buffer = const_cast<PWCH>(str);
+			str_.Length = static_cast<USHORT>(inputLength);
+			str_.MaximumLength = str_.Length;
+
+			if (length != npos)
+			{
+				if (length < size())
+					str_.Length = static_cast<USHORT>(length * sizeof(wchar_t));
+			}
+		}
+
+		unicode_string_view(const unicode_string_view& other) :
+			str_(other.str_)
+		{
+		}
+
+		/// <summary>
+		/// Size of view, in characters
+		/// </summary>
+		inline constexpr size_t size() const
+		{
+			return str_.Length / sizeof(wchar_t);
+		}
+
+		/// <summary>
+		/// Size of view in bytes, excluding null terminator
+		/// </summary>
+		inline constexpr size_t byte_size() const
+		{
+			return str_.Length;
+		}
+
+		inline constexpr size_t max_size() const
+		{
+			return NTSTRSAFE_UNICODE_STRING_MAX_CCH - 1;
+		}
+
+		constexpr PCUNICODE_STRING data() const
+		{
+			return &str_;
+		}
+
+		PUNICODE_STRING data()
+		{
+			return &str_;
+		}
+
+		constexpr PCUNICODE_STRING operator&() const
+		{
+			return data();
+		}
+
+		PUNICODE_STRING operator&()
+		{
+			return data();
+		}
+
+		constexpr unicode_string_view substr(size_t pos = 0, size_t count = npos)
+		{
+			if (pos > size())
+				return {};
+
+			if (count == npos || ((pos + count) > size()))
+				count = size() - pos;
+
+			unicode_string_view sub{ str_.Buffer + pos, count };
+			return sub;
+		}
+
+		template<typename string_type>
+		constexpr bool starts_with(const string_type& prefix)
+		{
+			if (size() < prefix.size())
+				return false;
+
+			auto sub = substr(0, prefix.size());
+			return sub == prefix;
+		}
+
+		template<typename string_type>
+		constexpr bool ends_with(const string_type& suffix)
+		{
+			if (size() < suffix.size())
+				return false;
+
+			auto sub = substr(size() - suffix.size());
+			return sub == suffix;
+		}
+
+		template<typename string_type>
+		constexpr bool operator==(const string_type& other)
+		{
+			return compare(other) == 0;
+		}
+
+		template<class T>
+		constexpr int compare(const T& other, bool caseInsensitive = false)
+		{
+			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
+		}
+
+		wchar_t operator[](size_t index)
+		{
+			return str_.Buffer[index];
+		}
+
+	private:
+		UNICODE_STRING str_ = {};
+	};
+
+	template<>
+	struct hash<unicode_string_view>
+	{
+		[[nodiscard]] hash_t operator()(const unicode_string_view& value) const
+		{
+			return wyhash(value.data()->Buffer, value.byte_size(), 0, _wyp);
+		}
+	};
+}
