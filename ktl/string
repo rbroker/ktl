@@ -86,42 +86,42 @@ namespace ktl
 			return *this;
 		}
 
-		[[nodiscard]] size_t size() const
+		inline [[nodiscard]] size_t size() const
 		{
 			return str_.Length / sizeof(wchar_t);
 		}
 
-		[[nodiscard]] size_t byte_size() const
+		inline [[nodiscard]] size_t byte_size() const
 		{
 			return str_.Length;
 		}
 
-		[[nodiscard]] size_t capacity() const
+		inline [[nodiscard]] size_t capacity() const
 		{
 			return str_.MaximumLength / sizeof(wchar_t);
 		}
 
-		[[nodiscard]] size_t byte_capacity() const
+		inline [[nodiscard]] size_t byte_capacity() const
 		{
 			return str_.MaximumLength;
 		}
 
-		void clear()
+		inline void clear()
 		{
 			(void)resize(0);
 		}
 
-		[[nodiscard]] size_t max_size() const
+		inline [[nodiscard]] size_t max_size() const
 		{
-			return NTSTRSAFE_UNICODE_STRING_MAX_CCH - 1;
+			return NTSTRSAFE_UNICODE_STRING_MAX_CCH;
 		}
 
-		[[nodiscard]] size_t max_byte_size() const
+		inline [[nodiscard]] size_t max_byte_size() const
 		{
 			return max_size() * sizeof(wchar_t);
 		}
 
-		[[nodiscard]] bool empty() const
+		inline [[nodiscard]] bool empty() const
 		{
 			return size() == 0;
 		}
@@ -144,19 +144,21 @@ namespace ktl
 			{
 				str_.Length = static_cast<USHORT>(newSize * sizeof(wchar_t));
 			}
-			else if (capacity() > newSize) // String is growing, but has spare capacity we could use. Capacity always has space for a null terminator, hence >, instead of >=.
+			else if (capacity() >= newSize) // String is growing, but has spare capacity we could use.
 			{
 				size_t newByteSize = newSize * sizeof(wchar_t);
-				size_t oldByteSize = byte_size();
 
-				memset(str_.Buffer + size(), fill, newByteSize - oldByteSize);
+				// Is there no multi-byte fill for kernel mode?
+				for (size_t i = size(); i < newSize; ++i)
+					str_.Buffer[i] = fill;
+
 				str_.Length = static_cast<USHORT>(newByteSize);
 			}
 			else // String is growing beyond existing capacity, requires reallocation.
 			{
-				size_t newByteCapacity = (newSize + 1) * sizeof(wchar_t);
+				size_t newByteCapacity = (newSize) * sizeof(wchar_t);
 
-				ktl::unique_ptr<wchar_t[]> tmp{ new (POOL) wchar_t[newSize + 1] };
+				ktl::unique_ptr<wchar_t[]> tmp{ new (POOL) wchar_t[newSize] };
 				if (!tmp)
 				{
 					KTL_LOG_ERROR("Failed to allocate memory for unique_ptr\n");
@@ -165,7 +167,7 @@ namespace ktl
 
 				if (str_.Length > 0)
 				{
-					if (NT_ERROR(RtlStringCchCopyW(tmp.get(), newSize + 1, str_.Buffer)))
+					if (NT_ERROR(RtlStringCchCopyW(tmp.get(), newSize, str_.Buffer)))
 					{
 						KTL_LOG_ERROR("Copying string into temporary buffer failed\n");
 						return false;
@@ -175,7 +177,9 @@ namespace ktl
 				buffer_.reset(tmp.release());
 				str_.Buffer = static_cast<PWCH>(buffer_.get());
 
-				memset(str_.Buffer + size(), fill, newByteCapacity - byte_size());
+				// Is there no multi-byte fill for kernel mode?
+				for (size_t i = size(); i < newSize; ++i)
+					str_.Buffer[i] = fill;
 
 				str_.Length = static_cast<USHORT>(newSize * sizeof(wchar_t));
 				str_.MaximumLength = static_cast<USHORT>(newByteCapacity);
@@ -271,9 +275,9 @@ namespace ktl
 			}
 			else // String is growing beyond existing capacity, requires reallocation.
 			{
-				size_t newByteCapacity = (newSize + 1) * sizeof(wchar_t);
+				size_t newByteCapacity = (newSize) * sizeof(wchar_t);
 
-				ktl::unique_ptr<wchar_t[]> tmp{ new (POOL) wchar_t[newSize + 1] };
+				ktl::unique_ptr<wchar_t[]> tmp{ new (POOL) wchar_t[newSize] };
 				if (!tmp)
 				{
 					KTL_LOG_ERROR("Failed to allocate memory for unique_ptr\n");
@@ -282,7 +286,7 @@ namespace ktl
 
 				if (str_.Length > 0)
 				{
-					if (NT_ERROR(RtlStringCbCopyW(tmp.get(), newSize + 1, str_.Buffer)))
+					if (NT_ERROR(RtlStringCbCopyW(tmp.get(), newSize, str_.Buffer)))
 					{
 						KTL_LOG_ERROR("Copying string into temporary buffer failed\n");
 						return false;

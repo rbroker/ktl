@@ -190,6 +190,17 @@ bool test_vector()
 			it = vec.erase(it);
 
 		ASSERT_TRUE(vec.empty(), "vector not empty after erasing all elements");
+
+		// huge vector.
+		vec.clear();
+
+		for (int i = 0; i < 1000000; ++i)
+			ASSERT_TRUE(vec.emplace_back(i), "large emplace failed at: %d", i);
+
+		for (int i = 0; i < 1000000; ++i)
+			ASSERT_TRUE(vec[i] == i, "unexpected value at %d: %d", i, vec[i]);
+
+		ASSERT_TRUE(vec.capacity() >= 1000000, "unexpectedly low vector capacity: %llu", vec.capacity());
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
@@ -230,6 +241,27 @@ bool test_unicode_string()
 		ktl::unicode_string moveAssigned = ktl::move(from_string);
 		ASSERT_TRUE(moveAssigned == L"my_string", "move assigned string didn't match");
 		ASSERT_TRUE(from_string != L"my_string", "string matched after being move assigned away");
+
+		// size
+		ASSERT_TRUE(literal2.size() == 2, "unexpected string size: %llu", literal2.size());
+		ASSERT_TRUE(moveConstructed.size() == 9, "unexpected move constructed size: %llu", moveConstructed.size());
+		ASSERT_TRUE(literal2.byte_size() == (literal2.size() * sizeof(wchar_t)), "unexpected byte size: %llu", literal2.byte_size());
+		ASSERT_TRUE(moveConstructed.byte_size() == (moveConstructed.size() * sizeof(wchar_t)), "unexpected move constructed byte size: %llu", literal2.byte_size());
+
+		// resize - grow
+		ASSERT_TRUE(literal2.resize(4, 'X'), "unexpected failure to resize");
+		ASSERT_TRUE(literal2 == L"myXX", "unexpected string fill on resize: %wZ", literal2.data());
+
+		// resize - shrink
+		ASSERT_TRUE(literal2.resize(2), "unexpected failure to resize");
+		ASSERT_TRUE(literal2 == L"my", "unexpected string value on resize");
+		ASSERT_TRUE(literal2.capacity() == 4, "unexpected string capacity after shrinking: %llu", literal2.capacity());
+		ASSERT_TRUE(literal2.byte_capacity() == (literal2.capacity() * sizeof(wchar_t)), "unexpected string byte capacity after shrinking");
+
+		// resize - grow into existing capacity
+		ASSERT_TRUE(literal2.resize(3, 'Y'), "unexpected failure to resize");
+		ASSERT_TRUE(literal2 == L"myY", "unexpected string fill on resize: %wZ", literal2.data());
+		ASSERT_TRUE(literal2.capacity() == 4, "unexpected string capacity after growing: %llu", literal2.capacity());
 
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)

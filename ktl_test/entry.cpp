@@ -85,7 +85,7 @@ DriverEntry(
         return status;
     }
 
-    init.set_exclusive_access(true);
+    init.set_exclusive_access(false);
     init.set_io_type(WdfDeviceIoBuffered);
     init.set_shutdown_handler(KtlTestDriverShutdown);
     init.set_file_object_config(KtlTestCreate, KtlTestClose);

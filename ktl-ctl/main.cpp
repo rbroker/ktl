@@ -6,7 +6,6 @@
 #include <iostream>
 #include <filesystem>
 #include <mutex>
-#include <optional>
 #include <string>
 #include <system_error>
 #include <thread>
@@ -126,26 +125,26 @@ void DriverStop()
 
 void RunTest(DWORD ioctl, std::vector<std::system_error>* errors, std::mutex* mtx, const std::string& name)
 {
-	Handle h = CreateFileW(L"\\\\.\\" KTL_TEST_DEVICE_USERMODE_NAME,
-		GENERIC_READ,
-		FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
-		nullptr,
-		OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL,
-		nullptr);
+	try
+	{
+		Handle h = CreateFileW(L"\\\\.\\" KTL_TEST_DEVICE_USERMODE_NAME,
+			GENERIC_READ,
+			FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE,
+			nullptr,
+			OPEN_EXISTING,
+			FILE_ATTRIBUTE_NORMAL,
+			nullptr);
 
-	if (!h)
-		return;
+		if (!h)
+			throw std::system_error(std::error_code(::GetLastError(), std::system_category()), "Failed to open handle for: " + name + " test");
 
-	std::optional<std::system_error> err;
-
-	if (!DeviceIoControl(h.get(), ioctl, nullptr, 0, nullptr, 0, nullptr, nullptr))
-		err = std::system_error(std::error_code(::GetLastError(), std::system_category()), "Failed " + name + " test");
-
-	if (err.has_value())
+		if (!DeviceIoControl(h.get(), ioctl, nullptr, 0, nullptr, 0, nullptr, nullptr))
+			throw std::system_error(std::error_code(::GetLastError(), std::system_category()), "Failed " + name + " test");
+	}
+	catch (std::system_error& err)
 	{
 		std::scoped_lock lock(*mtx);
-		errors->emplace_back(std::move(err.value()));
+		errors->emplace_back(std::move(err));
 	}
 }
 
