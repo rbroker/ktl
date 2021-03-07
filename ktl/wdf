@@ -232,6 +232,11 @@ namespace ktl
 			return memory;
 		}
 
+		void set_information(ULONG_PTR information)
+		{
+			WdfRequestSetInformation(*request_, information);
+		}
+
 		template<typename T>
 		T* create_context(PWDF_OBJECT_ATTRIBUTES attributes)
 		{
@@ -246,34 +251,5 @@ namespace ktl
 	private:
 		WDFREQUEST* request_;
 		NTSTATUS& status_;
-	};
-
-	struct [[nodiscard]] wdf_auto_request_information
-	{
-		wdf_auto_request_information(WDFREQUEST& request, NTSTATUS& status, ULONG_PTR& information) :
-			request_(request),
-			status_(status),
-			information_(information)
-		{
-			status_ = STATUS_SUCCESS;
-			information_ = 0;
-		}
-
-		~wdf_auto_request_information()
-		{
-			if (!NT_SUCCESS(status_))
-			{
-				WdfRequestComplete(request_, status_);
-			}
-			else
-			{
-				WdfRequestCompleteWithInformation(request_, status_, information_);
-			}
-		}
-
-	private:
-		WDFREQUEST& request_;
-		NTSTATUS& status_;
-		ULONG_PTR& information_;
 	};
 }

@@ -179,9 +179,9 @@ KtlTestFileIoRead(
     UNREFERENCED_PARAMETER(Length);
 
     NTSTATUS status;
-    ULONG_PTR information;
 
-    ktl::wdf_auto_request_information request{ Request, status, information };
+    ktl::wdf_auto_request request{ Request, status };
+    request.set_information(0);
 
     return;
 }
@@ -196,9 +196,9 @@ VOID KtlTestFileIoWrite(
     UNREFERENCED_PARAMETER(Length);
 
     NTSTATUS status;
-    ULONG_PTR information;
 
-    ktl::wdf_auto_request_information request{ Request, status, information };
+    ktl::wdf_auto_request request{ Request, status };
+    request.set_information(0);
 
     return;
 }
