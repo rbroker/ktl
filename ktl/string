@@ -322,16 +322,6 @@ namespace ktl
 			return &str_;
 		}
 
-		[[nodiscard]] PWCH c_str()
-		{
-			return str_.Buffer;
-		}
-
-		constexpr [[nodiscard]] PCWCH c_str() const
-		{
-			return str_.Buffer;
-		}
-
 		[[nodiscard]] constexpr PCUNICODE_STRING operator&() const
 		{
 			return data();
@@ -380,7 +370,7 @@ namespace ktl
 	{
 		[[nodiscard]] hash_t operator()(const pool_unicode_string<POOL>& value) const
 		{
-			return wyhash(value.c_str(), value.byte_size(), 0, _wyp);
+			return wyhash(value.data()->Buffer, value.byte_size(), 0, _wyp);
 		}
 	};
 }
