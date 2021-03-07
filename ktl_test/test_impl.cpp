@@ -1,5 +1,6 @@
 #include "test.h"
 
+#include <set>
 #include <string>
 #include <vector>
 
@@ -22,6 +23,22 @@ struct complex_object
 	int Value = 5;
 	ktl::vector<int> Vec;
 };
+
+bool test_set()
+{
+	__try
+	{
+		ktl::set<ktl::unicode_string> set;
+	}
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		LOG_ERROR("[NG]: %#x\n", GetExceptionCode());
+		return false;
+	}
+
+	LOG_TRACE("[OK] ktl::set!\n");
+	return true;
+}
 
 bool test_vector()
 {
@@ -188,6 +205,7 @@ bool test_unicode_string()
 {
 	__try
 	{
+		// Default & copy constructors
 		ktl::unicode_string from_literal{ L"my_string" };
 		ktl::unicode_string from_string{ from_literal };
 		ktl::unicode_string default_constructed{};
@@ -198,10 +216,20 @@ bool test_unicode_string()
 		ASSERT_TRUE(default_constructed.size() == 0, "default constructed string had non-zero size: %llu", default_constructed.size());
 
 		ASSERT_TRUE(from_literal == from_string, "constructed strings did not match");
-		ktl::unicode_string moved = ktl::move(from_string);
 
-		ASSERT_TRUE(moved == from_literal, "moved string didn't match");
-		ASSERT_TRUE(from_string != from_literal, "string matched after being moved away");
+		// construct, with length
+		ktl::unicode_string literal2{ L"my_string", 2 };
+		ASSERT_TRUE(literal2 == L"my", "substring constructor didn't initialize to expected value: %wZ", literal2.data());
+
+		// move construct
+		ktl::unicode_string moveConstructed{ ktl::move(from_literal) };
+		ASSERT_TRUE(moveConstructed == L"my_string", "move constructed string didn't match");
+		ASSERT_TRUE(from_literal != L"my_string", "string matched after being move constructed away");
+
+		// move assign
+		ktl::unicode_string moveAssigned = ktl::move(from_string);
+		ASSERT_TRUE(moveAssigned == L"my_string", "move assigned string didn't match");
+		ASSERT_TRUE(from_string != L"my_string", "string matched after being move assigned away");
 
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)

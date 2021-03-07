@@ -159,7 +159,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\shared\include\ktl_shared.h" />
-    <ClInclude Include="device_info.h" />
     <ClInclude Include="handle.h" />
     <ClInclude Include="service.h" />
   </ItemGroup>

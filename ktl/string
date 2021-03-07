@@ -10,7 +10,7 @@
 
 namespace ktl
 {
-	template<pool_type POOL>
+	template<pool_type POOL = pool_type::NonPaged>
 	struct pool_unicode_string
 	{
 		static const size_t npos = MAXSIZE_T;
@@ -62,7 +62,7 @@ namespace ktl
 		{
 		}
 
-		explicit pool_unicode_string(PCWSTR str, size_t length = npos) :
+		explicit pool_unicode_string(const wchar_t* str, size_t length = npos) :
 			pool_unicode_string(unicode_string_view{ str, length })
 		{
 		}
@@ -369,12 +369,12 @@ namespace ktl
 		UNICODE_STRING str_;
 	};
 
-	using unicode_string = pool_unicode_string<pool_type::Paged>;
+	using unicode_string = pool_unicode_string<pool_type::NonPaged>;
 
-	template<>
-	struct hash<unicode_string>
+	template<pool_type POOL>
+	struct hash<pool_unicode_string<POOL>>
 	{
-		[[nodiscard]] hash_t operator()(const unicode_string& value) const
+		[[nodiscard]] hash_t operator()(const pool_unicode_string<POOL>& value) const
 		{
 			return wyhash(value.c_str(), value.byte_size(), 0, _wyp);
 		}

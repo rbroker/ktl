@@ -5,8 +5,12 @@
 
 #include <iostream>
 #include <filesystem>
+#include <mutex>
+#include <optional>
 #include <string>
 #include <system_error>
+#include <thread>
+#include <vector>
 
 #include "handle.h"
 #include "service.h"
@@ -20,6 +24,9 @@ void print_help()
 	std::wcout << L"Expected a command:" << std::endl;
 	std::wcout << L"ktl-ctl.exe install [inf_path]" << std::endl;
 	std::wcout << L"ktl-ctl.exe uninstall [inf_path]" << std::endl;
+	std::wcout << L"ktl-ctl.exe start" << std::endl;
+	std::wcout << L"ktl-ctl.exe stop" << std::endl;
+	std::wcout << L"ktl-ctl.exe test" << std::endl;
 }
 
 void DriverInstall(const std::wstring& inf_path)
@@ -117,13 +124,7 @@ void DriverStop()
 		throw std::system_error(std::error_code(::GetLastError(), std::system_category()), "Failed to stop driver service");
 }
 
-std::string GetDevicePath()
-{
-	//HDEVINFO device = SetupDiGetclassDevsW()
-	return {};
-}
-
-void DriverTest()
+void RunTest(DWORD ioctl, std::vector<std::system_error>* errors, std::mutex* mtx, const std::string& name)
 {
 	Handle h = CreateFileW(L"\\\\.\\" KTL_TEST_DEVICE_USERMODE_NAME,
 		GENERIC_READ,
@@ -136,17 +137,39 @@ void DriverTest()
 	if (!h)
 		return;
 
-	if (!DeviceIoControl(h.get(), IOCTL_KTLTEST_METHOD_VECTOR_TEST, nullptr, 0, nullptr, 0, nullptr, nullptr))
-		throw std::system_error(std::error_code(::GetLastError(), std::system_category()), "Failed vector test");
+	std::optional<std::system_error> err;
 
-	if (!DeviceIoControl(h.get(), IOCTL_KTLTEST_METHOD_STRING_TEST, nullptr, 0, nullptr, 0, nullptr, nullptr))
-		throw std::system_error(std::error_code(::GetLastError(), std::system_category()), "Failed string test");
+	if (!DeviceIoControl(h.get(), ioctl, nullptr, 0, nullptr, 0, nullptr, nullptr))
+		err = std::system_error(std::error_code(::GetLastError(), std::system_category()), "Failed " + name + " test");
+
+	if (err.has_value())
+	{
+		std::scoped_lock lock(*mtx);
+		errors->emplace_back(std::move(err.value()));
+	}
+}
+
+void DriverTest()
+{
+	std::mutex mtx;
+	std::vector<std::system_error> errors;
+
+	std::thread setTestThr(RunTest, IOCTL_KTLTEST_METHOD_SET_TEST, &errors, &mtx, "ktl::set");
+	std::thread vectorTestThr(RunTest, IOCTL_KTLTEST_METHOD_VECTOR_TEST, &errors, &mtx, "ktl::vector");
+	std::thread stringTestThr(RunTest, IOCTL_KTLTEST_METHOD_STRING_TEST, &errors, &mtx, "ktl::unicode_string");
+	std::thread stringViewTestThr(RunTest, IOCTL_KTLTEST_METHOD_STRING_VIEW_TEST, &errors, &mtx, "ktl::unicode_string_view");
+
+	setTestThr.join();
+	vectorTestThr.join();
+	stringTestThr.join();
+	stringViewTestThr.join();
+
+	for (const auto& err : errors)
+		throw err;
 }
 
 int wmain(int argc, wchar_t** argv)
 {
-
-
 	try
 	{
 		std::wstring_view command;

@@ -11,19 +11,36 @@ namespace ktl
 	extern "C" { int _fltused = 1; }
 
 	/* Memory Allocations */
+#ifdef KTL_TRACK_ALLOCATIONS
+	volatile INT64 _ktl_pool_alloc_count;
+	volatile INT64 _ktl_pool_free_count;
+#endif
+
 	[[nodiscard]] void* pool_alloc(size_t size, pool_type type)
 	{
 		POOL_TYPE pool = NonPagedPoolNx;
 		if (type == pool_type::Paged)
 			pool = PagedPool;
 
+#ifdef KTL_TRACK_ALLOCATIONS
+		auto p = ExAllocatePoolZero(pool, size, KTL_POOL_TAG);
+
+		if (p != nullptr)
+			InterlockedIncrement64(&_ktl_pool_alloc_count);
+
+		return p;
+#else
 		// Should be replaced with ExAllocatePool2 if we can drop support for versions of Win10 older than v2004.
 		// https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-exallocatepool2
 		return ExAllocatePoolZero(pool, size, KTL_POOL_TAG);
+#endif
 	}
 
 	void pool_free(void* p)
 	{
+#ifdef KTL_TRACK_ALLOCATIONS
+		InterlockedIncrement64(&_ktl_pool_free_count);
+#endif
 		::ExFreePoolWithTag(p, KTL_POOL_TAG);
 	}
 
@@ -76,8 +93,6 @@ namespace ktl
 	{
 		for (auto curr = start; curr < end; ++curr)
 		{
-			KTL_LOG_TRACE("pvfv: %p\n", *curr);
-
 			if (!(*curr))
 				continue;
 
@@ -90,8 +105,6 @@ namespace ktl
 	{
 		for (auto curr = start; curr < end; ++curr)
 		{
-			KTL_LOG_TRACE("pifv: %p\n", *curr);
-
 			if (!(*curr))
 				continue;
 
@@ -116,6 +129,11 @@ namespace ktl
 
 	[[nodiscard]] bool initialize_runtime()
 	{
+#ifdef KTL_TRACK_ALLOCATIONS
+		_ktl_pool_alloc_count = 0;
+		_ktl_pool_free_count = 0;
+#endif
+
 		__at_exit_lock = new_spinlock();
 
 		if (!__at_exit_lock)
@@ -135,8 +153,6 @@ namespace ktl
 				return false;
 			}
 
-			KTL_LOG_TRACE("C++ initializers: %p -> %p\n", __xc_a, __xc_z);
-
 			// Call all C++ dynamic initializers.
 			walk_function_table(__xc_a, __xc_z);
 		}
@@ -146,7 +162,6 @@ namespace ktl
 			return false;
 		}
 
-		KTL_LOG_TRACE("dynamic language initialization successful\n");
 		return true;
 	}
 
@@ -190,8 +205,6 @@ namespace ktl
 				break;
 
 			auto entry = CONTAINING_RECORD(head, __at_exit_fn_element, Entry);
-
-			KTL_LOG_TRACE("Calling atexit() fn: %p\n", entry->AtExitCallback);
 			entry->AtExitCallback();
 			pool_free(entry);
 		}
@@ -200,8 +213,6 @@ namespace ktl
 
 		pool_free(__at_exit_lock);
 		__at_exit_lock = nullptr;
-
-		KTL_LOG_TRACE("Walking function tables for C terminators...\n");
 
 		__try
 		{
@@ -215,7 +226,12 @@ namespace ktl
 		{
 		}
 
-		KTL_LOG_TRACE("Successfully unloaded runtime.\n");
+#ifdef KTL_TRACK_ALLOCATIONS
+		if (_ktl_pool_alloc_count != _ktl_pool_free_count)
+			KTL_LOG_ERROR("Alloc/Free mismatch: %lld/%lld\n", _ktl_pool_alloc_count, _ktl_pool_free_count);
+		else
+			KTL_LOG_TRACE("pool alloc count: %lld, pool free count: %lld\n", _ktl_pool_alloc_count, _ktl_pool_free_count);
+#endif
 	}
 }
 

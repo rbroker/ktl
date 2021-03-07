@@ -146,7 +146,7 @@ namespace ktl
 		PLIST_ENTRY curr_;
 	};
 
-	template<typename T, pool_type POOL = pool_type::Paged>
+	template<typename T, pool_type POOL = pool_type::NonPaged>
 	struct list
 	{
 		using element_type = list_element<T, POOL>;

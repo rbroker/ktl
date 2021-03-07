@@ -107,7 +107,7 @@ namespace ktl
 		size_t index_ = 0;
 	};
 
-	template<class T, pool_type POOL = pool_type::Paged>
+	template<class T, pool_type POOL = pool_type::NonPaged>
 	struct vector
 	{
 		using iterator = vector_iterator<T>;

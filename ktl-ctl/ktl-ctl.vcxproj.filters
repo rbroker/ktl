@@ -26,9 +26,6 @@
     <ClInclude Include="handle.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="device_info.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\shared\include\ktl_shared.h">
       <Filter>Header Files</Filter>
     </ClInclude>

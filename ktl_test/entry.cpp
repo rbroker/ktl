@@ -28,10 +28,6 @@ extern "C"
 #pragma alloc_text( INIT, DriverEntry )
 #pragma alloc_text( PAGE, KtlTestCreate )
 #pragma alloc_text( PAGE, KtlTestClose )
-#pragma alloc_text( PAGE, KtlTestFileIoRead )
-#pragma alloc_text( PAGE, KtlTestFileIoWrite )
-#pragma alloc_text( PAGE, KtlTestFileIoDeviceControl )
-#pragma alloc_text( PAGE, KtlTestDeviceIoInCallerContext )
 #pragma alloc_text( PAGE, KtlTestDriverShutdown )
 #pragma alloc_text( PAGE, KtlTestDriverUnload )
 #pragma alloc_text( PAGE, KtlTestDriverContextCleanup )
@@ -216,8 +212,6 @@ KtlTestFileIoDeviceControl(
     UNREFERENCED_PARAMETER(OutputBufferLength);
     UNREFERENCED_PARAMETER(InputBufferLength);
 
-    PAGED_CODE();
-
     NTSTATUS status;
 
     ktl::wdf_auto_request request{ Request, status };
@@ -231,6 +225,8 @@ KtlTestFileIoDeviceControl(
     case IOCTL_KTLTEST_METHOD_MEMORY_TEST:
         break;
     case IOCTL_KTLTEST_METHOD_SET_TEST:
+        if (!test_set())
+            status = STATUS_FAIL_CHECK;
         break;
     case IOCTL_KTLTEST_METHOD_VECTOR_TEST:
         if (!test_vector())
@@ -257,8 +253,6 @@ KtlTestDeviceIoInCallerContext(
     IN WDFREQUEST Request
 )
 {
-    PAGED_CODE();
-
     NTSTATUS status;
     ktl::wdf_auto_request request{ Request, status };
 
@@ -307,8 +301,6 @@ VOID KtlTestDriverContextCleanup(
 {
     UNREFERENCED_PARAMETER(Driver);
 
-    LOG_TRACE("Entered context cleanupRuntime\n");
-
     PAGED_CODE();
 }
 
@@ -318,5 +310,6 @@ KtlTestDriverShutdown(
 )
 {
     UNREFERENCED_PARAMETER(Device);
+    PAGED_CODE();
     return;
 }

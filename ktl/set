@@ -148,8 +148,6 @@ namespace ktl
 
 			auto& bucket = table_[bucketIdx];
 
-			KTL_LOG_TRACE("'%wZ' inserting into bucket: %llu\n", value.data(), bucketIdx);
-
 			auto it = find_if(bucket.begin(), bucket.end(), [&](const auto& element) -> bool
 				{
 					return Comparer()(element, value);
@@ -223,8 +221,6 @@ namespace ktl
 				auto& currentBucket = table_[i];
 				const auto& b = currentBucket.begin();
 				const auto& e = currentBucket.end();
-
-				KTL_LOG_TRACE("bucket: %llu\n", i);
 
 				for (auto it = b; it != e;)
 				{
