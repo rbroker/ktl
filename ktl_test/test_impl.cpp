@@ -263,6 +263,28 @@ bool test_unicode_string()
 		ASSERT_TRUE(literal2 == L"myY", "unexpected string fill on resize: %wZ", literal2.data());
 		ASSERT_TRUE(literal2.capacity() == 4, "unexpected string capacity after growing: %llu", literal2.capacity());
 
+		// substr
+		auto s1 = literal2.substr(0, 1);
+		ASSERT_TRUE(s1 == L"m", "unexpected substring value: %wZ", s1.data());
+		auto s2 = literal2.substr(2);
+		ASSERT_TRUE(s2 == L"Y", "unexpected substring value: %wZ", s2.data());
+		auto s3 = literal2.substr(1, 1);
+		ASSERT_TRUE(s3 == L"y", "unexpected substring value: %wZ", s3.data());
+
+		// append
+		auto append = s1.append(L"hello");
+		ASSERT_TRUE(append == L"mhello", "unexpected appended string value: %wZ", append.data());
+		append += L" world";
+		ASSERT_TRUE(append == L"mhello world", "unexpected appended string value: %wZ", append.data());
+		append += s2;
+		ASSERT_TRUE(append == L"mhello worldY", "unexpected appended string value: %wZ", append.data());
+
+		// addition
+		auto s4 = append + s3;
+		ASSERT_TRUE(s4 == L"mhello worldYy", "unexpected appended string value: %wZ", s4.data());
+
+		// compare insensitive
+		ASSERT_TRUE(s2.compare(s3, true) == 0, "unexpected result for case insensitive comparison");
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
