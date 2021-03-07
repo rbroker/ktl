@@ -196,8 +196,6 @@ namespace ktl
 		/// <returns>The substring, or an empty string on error</returns>
 		constexpr pool_unicode_string substr(size_t pos = 0, size_t count = npos)
 		{
-			KTL_LOG_TRACE("Creating substring from position %lu, of length %lu\n", pos, count);
-
 			if (pos > size())
 			{
 				KTL_LOG_ERROR("Requested start position beyond end_ of string\n");
@@ -210,7 +208,7 @@ namespace ktl
 			pool_unicode_string sub;
 			if (!sub.resize(count))
 			{
-				KTL_LOG_ERROR("Failed to resize substring to %lu\n", count);
+				KTL_LOG_ERROR("Failed to resize substring to %llu\n", count);
 				return {};
 			}
 
@@ -232,7 +230,7 @@ namespace ktl
 				return *this;
 			}
 
-			if (!RtlUnicodeStringCchCatN(&str_, &str, str.size()))
+			if (!NT_SUCCESS(RtlUnicodeStringCchCatN(&str_, &str, str.size())))
 				KTL_LOG_ERROR("String concatenaton failed\n");
 
 			return *this;
@@ -352,8 +350,12 @@ namespace ktl
 			return compare(other) != 0;
 		}
 
-		template<class T>
-		constexpr int compare(const T& other, bool caseInsensitive = false) const
+		constexpr int compare(unicode_string_view other, bool caseInsensitive = false) const
+		{
+			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
+		}
+
+		constexpr int compare(const pool_unicode_string& other, bool caseInsensitive = false) const
 		{
 			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
 		}

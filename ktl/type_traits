@@ -82,6 +82,12 @@ namespace ktl
 	template<class T, unsigned int I>
 	constexpr size_t extent_v<T[], I> = extent_v<T, I - 1>;
 
+	template<class T, class U>
+	constexpr bool is_same_v = false;
+
+	template<class T>
+	constexpr bool is_same_v<T, T> = true;
+
 	template<class T, unsigned int I = 0>
 	struct extent
 	{

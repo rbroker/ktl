@@ -86,6 +86,8 @@ namespace ktl
 					return;
 
 				// find a bucket that has something in it.
+				++bucket_;
+
 				for (; bucket_ < set_->bucket_count(); ++bucket_)
 				{
 					auto& nextBucket = set_->table_[bucket_];
@@ -168,13 +170,37 @@ namespace ktl
 			return true;
 		}
 
-		template<typename key_type>
-		[[nodiscard]] iterator find(const key_type& key)
+		[[nodiscard]] iterator find(const T& key)
 		{
 			if (empty())
 				return end();
 
-			auto h = hash<key_type>{}(key);
+			auto h = hash<T>{}(key);
+			auto bucketIdx = h % bucket_count();
+
+			auto& bucket = table_[bucketIdx];
+
+			for (size_t i = 0; i < bucket.size(); ++i)
+			{
+				auto& elementValue = bucket[i];
+				auto elementHash = hash<T>{}(elementValue);
+
+				if (h == elementHash && Comparer()(elementValue, key))
+				{
+					return iterator{ this, bucketIdx, i };
+				}
+			}
+
+			return iterator{};
+		}
+
+		template<typename = enable_if_t<is_same_v<T, pool_unicode_string>>>
+		[[nodiscard]] iterator find(unicode_string_view key)
+		{
+			if (empty())
+				return end();
+
+			auto h = hash<unicode_string_view>{}(key);
 			auto bucketIdx = h % bucket_count();
 
 			auto& bucket = table_[bucketIdx];
@@ -267,6 +293,7 @@ namespace ktl
 					continue;
 
 				bucket.erase(it);
+				--size_;
 				return ++(iterator{ this, bucketIdx, elementIdx  });
 			}
 
