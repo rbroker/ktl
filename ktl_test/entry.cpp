@@ -1,5 +1,5 @@
 #include "ktl_test.h"
-#include "test_vector.h"
+#include "test.h"
 
 #include <ktl_core.h>
 #include <kernel>
@@ -233,12 +233,12 @@ KtlTestFileIoDeviceControl(
     case IOCTL_KTLTEST_METHOD_SET_TEST:
         break;
     case IOCTL_KTLTEST_METHOD_VECTOR_TEST:
-        if (!test_vector_basic())
-        {
+        if (!test_vector())
             status = STATUS_FAIL_CHECK;
-            return;
-        }
-        LOG_TRACE("vector test OK!\n");
+        break;
+    case IOCTL_KTLTEST_METHOD_STRING_TEST:
+        if (!test_unicode_string())
+            status = STATUS_FAIL_CHECK;
         break;
     default:
         break;

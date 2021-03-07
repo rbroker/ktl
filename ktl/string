@@ -24,14 +24,19 @@ namespace ktl
 		// If we can get guaranteed copy elision for NRVO, then probably
 		// best to delete the copy constructor / assign, and see if we can move
 		// to having an explicit "copy" method instead.
-		pool_unicode_string(const pool_unicode_string& other)
+		pool_unicode_string(const pool_unicode_string& other) :
+			str_{}
 		{
 			if (!resize(other.size()))
-				return;
-
-			if (NT_ERROR(RtlUnicodeStringCopy(data(), other.data())))
 			{
-				KTL_LOG_ERROR("Failed to copy from unicode string ptr\n");
+				KTL_LOG_ERROR("Failed to resize string for copy-construction\n");
+				return;
+			}
+
+			NTSTATUS status = RtlUnicodeStringCopy(data(), other.data());
+			if (!NT_SUCCESS(status))
+			{
+				KTL_LOG_ERROR("Failed to copy from unicode string\n");
 				clear();
 			}
 		}
@@ -40,7 +45,10 @@ namespace ktl
 			str_{}
 		{
 			if (!byte_resize(other->Length))
+			{
+				KTL_LOG_ERROR("Failed to resize string for copy-construction\n");
 				return;
+			}
 
 			if (NT_ERROR(RtlUnicodeStringCopy(&str_, other)))
 			{
@@ -54,7 +62,7 @@ namespace ktl
 		{
 		}
 
-		pool_unicode_string(PCWSTR str, size_t length = npos) :
+		explicit pool_unicode_string(PCWSTR str, size_t length = npos) :
 			pool_unicode_string(unicode_string_view{ str, length })
 		{
 		}
@@ -335,9 +343,19 @@ namespace ktl
 			return compare(other) == 0;
 		}
 
-		constexpr bool operator==(const unicode_string_view& other) const
+		constexpr bool operator==(unicode_string_view other) const
 		{
 			return compare(other) == 0;
+		}
+
+		constexpr bool operator!=(const pool_unicode_string& other) const
+		{
+			return compare(other) != 0;
+		}
+
+		constexpr bool operator!=(unicode_string_view other) const
+		{
+			return compare(other) != 0;
 		}
 
 		template<class T>

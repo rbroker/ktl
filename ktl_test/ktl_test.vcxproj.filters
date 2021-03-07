@@ -27,15 +27,12 @@
     <ClCompile Include="entry.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="test_vector.cpp">
+    <ClCompile Include="test_impl.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ktl_test.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="test_vector.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="test.h">

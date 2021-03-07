@@ -26,24 +26,22 @@ namespace ktl
 				str_ = *str;
 		}
 
-		unicode_string_view(PCWSTR str, size_t length = npos)
+		constexpr unicode_string_view(const wchar_t* str, size_t length = npos)
 		{
-			size_t inputLength;
-			if (NT_ERROR(RtlStringCbLengthW(str, NTSTRSAFE_MAX_CCH * sizeof(wchar_t), &inputLength)))
-			{
-				KTL_LOG_ERROR("Failed to determine input string length (in bytes)\n");
-				return;
-			}
-
 			str_.Buffer = const_cast<PWCH>(str);
-			str_.Length = static_cast<USHORT>(inputLength);
-			str_.MaximumLength = str_.Length;
+			str_.MaximumLength = 0;
+			str_.Length = 0;
 
-			if (length != npos)
+			for (size_t i = 0; str[i] != UNICODE_NULL; ++i)
 			{
-				if (length < size())
-					str_.Length = static_cast<USHORT>(length * sizeof(wchar_t));
+				++(str_.MaximumLength);
+
+				if (i <= length)
+					++(str_.Length);
 			}
+
+			str_.Length *= sizeof(wchar_t);
+			str_.MaximumLength *= sizeof(wchar_t);
 		}
 
 		unicode_string_view(const unicode_string_view& other) :
@@ -125,13 +123,18 @@ namespace ktl
 		}
 
 		template<typename string_type>
-		constexpr bool operator==(const string_type& other)
+		constexpr bool operator==(const string_type& other) const
 		{
 			return compare(other) == 0;
 		}
 
+		constexpr bool operator!=(const unicode_string_view& other) const
+		{
+			return compare(other) != 0;
+		}
+
 		template<class T>
-		constexpr int compare(const T& other, bool caseInsensitive = false)
+		constexpr int compare(const T& other, bool caseInsensitive = false) const
 		{
 			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
 		}

@@ -138,6 +138,9 @@ void DriverTest()
 
 	if (!DeviceIoControl(h.get(), IOCTL_KTLTEST_METHOD_VECTOR_TEST, nullptr, 0, nullptr, 0, nullptr, nullptr))
 		throw std::system_error(std::error_code(::GetLastError(), std::system_category()), "Failed vector test");
+
+	if (!DeviceIoControl(h.get(), IOCTL_KTLTEST_METHOD_STRING_TEST, nullptr, 0, nullptr, 0, nullptr, nullptr))
+		throw std::system_error(std::error_code(::GetLastError(), std::system_category()), "Failed string test");
 }
 
 int wmain(int argc, wchar_t** argv)
@@ -187,12 +190,15 @@ int wmain(int argc, wchar_t** argv)
 		}
 		else if (command == L"test")
 		{
+			DriverStart();
 			DriverTest();
+			DriverStop();
 		}
 	}
 	catch (std::system_error& ex)
 	{
 		std::cout << "[ERROR]: " << ex.what() << "(" << ex.code().value() << ")" << std::endl;
+		try { DriverStop(); } catch(...) {}
 		return -1;
 	}
 
