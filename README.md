@@ -28,17 +28,15 @@ DriverEntry(
 Similarly, we must manually unload the runtime immediately before unloading the driver:
 
 ```C++
-NTSTATUS
+VOID
 DriverUnload(
-    _In_ FLT_FILTER_UNLOAD_FLAGS Flags
+    _In_ WDFDRIVER DriverObject
 )
 {
     ...
 
     // Unload the KTL runtime (run dynamic atexit, etc).
-    ktl::unload_runtime();
-
-    return STATUS_SUCCESS;
+    ktl::unload_runtime();    
 }
 ```
 
