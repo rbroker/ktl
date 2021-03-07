@@ -70,22 +70,22 @@ namespace ktl
 			return NTSTRSAFE_UNICODE_STRING_MAX_CCH - 1;
 		}
 
-		constexpr PCUNICODE_STRING data() const
+		inline constexpr PCUNICODE_STRING data() const
 		{
 			return &str_;
 		}
 
-		PUNICODE_STRING data()
+		inline PUNICODE_STRING data()
 		{
 			return &str_;
 		}
 
-		constexpr PCUNICODE_STRING operator&() const
+		inline constexpr PCUNICODE_STRING operator&() const
 		{
 			return data();
 		}
 
-		PUNICODE_STRING operator&()
+		inline PUNICODE_STRING operator&()
 		{
 			return data();
 		}

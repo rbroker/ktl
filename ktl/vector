@@ -272,7 +272,6 @@ namespace ktl
 			}
 			else
 			{
-				KTL_LOG_TRACE("iterator begin: %p\n", data());
 				return iterator{ data(), data() + size() };
 			}
 		}

@@ -240,6 +240,10 @@ KtlTestFileIoDeviceControl(
         if (!test_unicode_string())
             status = STATUS_FAIL_CHECK;
         break;
+    case IOCTL_KTLTEST_METHOD_STRING_VIEW_TEST:
+        if (!test_unicode_string_view())
+            status = STATUS_FAIL_CHECK;
+        break;
     default:
         break;
     }
