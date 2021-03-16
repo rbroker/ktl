@@ -170,7 +170,7 @@ namespace ktl
 
 			if constexpr (is_trivially_copyable_v<T>)
 			{
-				RtlMoveMemory(tmp.get(), buffer_.get(), size() * sizeof(T));
+				RtlCopyMemory(tmp.get(), buffer_.get(), size() * sizeof(T));
 			}
 			else
 			{
@@ -308,10 +308,17 @@ namespace ktl
 			}
 			else // We're erasing something in the middle, need to shift data along.
 			{
-				for (size_t current = b; current < e; ++current)
+				if constexpr (is_trivially_copyable_v<T>)
 				{
-					auto next = current + 1;
-					buffer_[current] = move(buffer_[next]);
+					RtlMoveMemory(&(buffer_[b]), &(buffer_[b + 1]), (size() - b) * sizeof(T));
+				}
+				else
+				{
+					for (size_t current = b; current < e; ++current)
+					{
+						auto next = current + 1;
+						buffer_[current] = move(buffer_[next]);
+					}
 				}
 
 				return iterator{ data(), data() + size(), b };

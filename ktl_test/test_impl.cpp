@@ -251,6 +251,67 @@ bool test_vector()
 
 		ASSERT_TRUE(vec.empty(), "vector not empty after erasing all elements");
 
+		// erase complex
+		ktl::vector<ktl::unicode_string> vecStr;
+		static_assert(!ktl::is_trivially_copyable_v<ktl::unicode_string>);
+
+		ASSERT_TRUE(vecStr.emplace_back(L"one"), "failed to emplace test string");
+		ASSERT_TRUE(vecStr.emplace_back(L"two"), "failed to emplace test string");
+		ASSERT_TRUE(vecStr.emplace_back(L"three"), "failed to emplace test string");
+		ASSERT_TRUE(vecStr.emplace_back(L"four"), "failed to emplace test string");
+		ASSERT_TRUE(vecStr.emplace_back(L"five"), "failed to emplace test string");
+
+		// erase complex front
+		for (auto it = vecStr.begin(); it != vecStr.end(); )
+		{
+			if (*it == L"one")
+				it = vecStr.erase(it);
+
+			++it;
+		}
+
+		ASSERT_TRUE(vecStr.size() == 4, "unexpected size after erase: %llu", vecStr.size());
+		ASSERT_TRUE(ktl::find_if(vecStr.begin(), vecStr.end(), [](auto e) -> bool { return e == L"one"; }) == vecStr.end(), "found erased element");
+		ASSERT_TRUE(ktl::find_if(vecStr.begin(), vecStr.end(), [](auto e) -> bool { return e == L"two"; }) != vecStr.end(), "didn't find expected element (two)");
+		ASSERT_TRUE(ktl::find_if(vecStr.begin(), vecStr.end(), [](auto e) -> bool { return e == L"three"; }) != vecStr.end(), "didn't find expected element (three)");
+		ASSERT_TRUE(ktl::find_if(vecStr.begin(), vecStr.end(), [](auto e) -> bool { return e == L"four"; }) != vecStr.end(), "didn't find expected element (four)");
+		ASSERT_TRUE(ktl::find_if(vecStr.begin(), vecStr.end(), [](auto e) -> bool { return e == L"five"; }) != vecStr.end(), "didn't find expected element (five)");
+
+		// erase back
+		for (auto it = vecStr.begin(); it != vecStr.end(); )
+		{
+			if (*it == L"five")
+				it = vecStr.erase(it);
+
+			++it;
+		}
+
+		ASSERT_TRUE(vecStr.size() == 3, "unexpected size after erase: %llu", vecStr.size());
+		ASSERT_TRUE(ktl::find_if(vecStr.begin(), vecStr.end(), [](auto e) -> bool { return e == L"two"; }) != vecStr.end(), "didn't find expected element (two)");
+		ASSERT_TRUE(ktl::find_if(vecStr.begin(), vecStr.end(), [](auto e) -> bool { return e == L"three"; }) != vecStr.end(), "didn't find expected element (three)");
+		ASSERT_TRUE(ktl::find_if(vecStr.begin(), vecStr.end(), [](auto e) -> bool { return e == L"four"; }) != vecStr.end(), "didn't find expected element (four)");
+		ASSERT_TRUE(ktl::find_if(vecStr.begin(), vecStr.end(), [](auto e) -> bool { return e == L"five"; }) == vecStr.end(), "found erased element");
+
+		// erase middle
+		for (auto it = vecStr.begin(); it != vecStr.end(); )
+		{
+			if (*it == L"three")
+				it = vecStr.erase(it);
+
+			++it;
+		}
+
+		ASSERT_TRUE(vecStr.size() == 2, "unexpected size after erase: %llu", vecStr.size());
+		ASSERT_TRUE(ktl::find_if(vecStr.begin(), vecStr.end(), [](auto e) -> bool { return e == L"two"; }) != vecStr.end(), "didn't find expected element (two)");
+		ASSERT_TRUE(ktl::find_if(vecStr.begin(), vecStr.end(), [](auto e) -> bool { return e == L"three"; }) == vecStr.end(), "found erased element");
+		ASSERT_TRUE(ktl::find_if(vecStr.begin(), vecStr.end(), [](auto e) -> bool { return e == L"four"; }) != vecStr.end(), "didn't find expected element (four)");
+
+		// Erase remaining elements
+		for (auto it = vecStr.begin(); it != vecStr.end();)
+			it = vecStr.erase(it);
+
+		ASSERT_TRUE(vecStr.empty(), "vector not empty after erasing all elements");
+
 		// huge vector.
 		vec.clear();
 
