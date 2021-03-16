@@ -13,6 +13,8 @@ namespace ktl
 	template<pool_type POOL = pool_type::NonPaged>
 	struct pool_unicode_string
 	{
+		friend struct unicode_string_view;
+
 		static const size_t npos = MAXSIZE_T;
 
 		pool_unicode_string() :
@@ -41,7 +43,7 @@ namespace ktl
 			}
 		}
 
-		pool_unicode_string(const PUNICODE_STRING other) :
+		explicit pool_unicode_string(const PUNICODE_STRING other) :
 			str_{}
 		{
 			if (!byte_resize(other->Length))
@@ -194,7 +196,7 @@ namespace ktl
 		/// <param name="pos">The character index to begin_ the substring</param>
 		/// <param name="count">Length of the substring to return, in characters of npos for the whole remaining input</param>
 		/// <returns>The substring, or an empty string on error</returns>
-		constexpr pool_unicode_string substr(size_t pos = 0, size_t count = npos)
+		pool_unicode_string substr(size_t pos = 0, size_t count = npos)
 		{
 			if (pos > size())
 			{
@@ -330,32 +332,32 @@ namespace ktl
 			return data();
 		}
 
-		constexpr bool operator==(const pool_unicode_string& other) const
+		bool operator==(const pool_unicode_string& other) const
 		{
 			return compare(other) == 0;
 		}
 
-		constexpr bool operator==(unicode_string_view other) const
+		bool operator==(unicode_string_view other) const
 		{
 			return compare(other) == 0;
 		}
 
-		constexpr bool operator!=(const pool_unicode_string& other) const
+		bool operator!=(const pool_unicode_string& other) const
 		{
 			return compare(other) != 0;
 		}
 
-		constexpr bool operator!=(unicode_string_view other) const
+		bool operator!=(unicode_string_view other) const
 		{
 			return compare(other) != 0;
 		}
 
-		constexpr int compare(unicode_string_view other, bool caseInsensitive = false) const
+		int compare(unicode_string_view other, bool caseInsensitive = false) const
 		{
 			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
 		}
 
-		constexpr int compare(const pool_unicode_string& other, bool caseInsensitive = false) const
+		int compare(const pool_unicode_string& other, bool caseInsensitive = false) const
 		{
 			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
 		}

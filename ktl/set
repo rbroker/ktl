@@ -324,8 +324,6 @@ namespace ktl
 					return true;
 			}
 
-			KTL_LOG_TRACE("Growing set, as max load factor exceeded\n");
-
 			auto buckets = bucket_count();
 
 			if (buckets == 0)

@@ -123,6 +123,11 @@ namespace ktl
 			WdfControlDeviceInitSetShutdownNotification(init_, callback, flags);
 		}
 
+		void set_device_io_in_caller_context_handler(PFN_WDF_IO_IN_CALLER_CONTEXT callback)
+		{
+			WdfDeviceInitSetIoInCallerContextCallback(init_, callback);
+		}
+
 		void set_file_object_config(PFN_WDF_DEVICE_FILE_CREATE createCb, PFN_WDF_FILE_CLOSE closeCb, PFN_WDF_FILE_CLEANUP cleanupCb = WDF_NO_EVENT_CALLBACK, PWDF_OBJECT_ATTRIBUTES attr = WDF_NO_OBJECT_ATTRIBUTES)
 		{
 			ktl::wdf_file_object_config fileConfig(createCb, closeCb, cleanupCb);

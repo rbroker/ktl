@@ -89,12 +89,7 @@ DriverEntry(
     init.set_io_type(WdfDeviceIoBuffered);
     init.set_shutdown_handler(KtlTestDriverShutdown);
     init.set_file_object_config(KtlTestCreate, KtlTestClose);
-
-    WdfDeviceInitSetIoInCallerContextCallback(&init,
-        KtlTestDeviceIoInCallerContext);
-
-    WDF_OBJECT_ATTRIBUTES_INIT_CONTEXT_TYPE(&attributes,
-        KTL_TEST_DEVICE_EXTENSION);
+    init.set_device_io_in_caller_context_handler(KtlTestDeviceIoInCallerContext);
 
     WDFDEVICE controlDevice;
     status = WdfDeviceCreate(init.get(), &attributes, &controlDevice);

@@ -6,11 +6,11 @@
 
 namespace ktl
 {
-	/// <summary>
-	///  Helper to save & restore x87 floating point state.
-	/// </summary>
 	struct [[nodiscard]] floating_point_state
 	{
+		/// <summary>
+		/// Helper to save & restore x87 floating point state.
+		/// </summary>
 		floating_point_state()
 		{
 			if (NT_ERROR(KeSaveExtendedProcessorState(XSTATE_MASK_LEGACY_FLOATING_POINT, &state_)))

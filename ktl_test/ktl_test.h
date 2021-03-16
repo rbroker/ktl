@@ -16,13 +16,6 @@ struct KtlGlobalState
     ktl::shared_mutex RwLock;
 };
 
-typedef struct _KTL_TEST_DEVICE_EXTENSION
-{
-    HANDLE FileHandle;
-} KTL_TEST_DEVICE_EXTENSION, *PKTL_TEST_DEVICE_EXTENSION;
-
-WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(KTL_TEST_DEVICE_EXTENSION, GetKtlTestDeviceExtension);
-
 typedef struct _KTL_TEST_IOCTL_CONTEXT
 {
     WDFMEMORY UsermodeIn;

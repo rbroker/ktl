@@ -18,6 +18,7 @@ bool KTLTest_##Name(void)														\
 }                                                                               \
 
 #define ASSERT_TRUE(x, fmt, ...) do { if (!(##x)) { LOG_ERROR("[NG] (" #x ") " fmt "\n", __VA_ARGS__); return false; } } while(0)
+#define ASSERT_FALSE(x, fmt, ...) do { if ((##x)) { LOG_ERROR("[NG] (" #x ") " fmt "\n", __VA_ARGS__); return false; } } while(0)
 
 bool test_set();
 bool test_vector();

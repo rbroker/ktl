@@ -356,8 +356,41 @@ bool test_unicode_string_view()
 	{
 		constexpr ktl::unicode_string_view compile_time{ L"compile_time" };
 		constexpr ktl::unicode_string_view other_compile_time{ L"other_compile_time" };
+		constexpr ktl::unicode_string_view compile_time_string_of_string{ compile_time };
 
+		// compare
 		ASSERT_TRUE(compile_time != other_compile_time, "compile time strings matched");
+		ASSERT_TRUE(compile_time_string_of_string == compile_time, "compile time strings did not match");
+		ASSERT_TRUE(other_compile_time.compare(L"OtHeR_cOmPiLe_TiMe", true) == 0, "case insensitive comparison failed unexpectedly");
+		ASSERT_FALSE(other_compile_time.compare(L"cOmPiLe_TiMe", true) == 0, "case insensitive comparison succeeded unexpectedly");
+
+		// substr
+		constexpr ktl::unicode_string_view just_time{ compile_time.substr(8) };
+		ASSERT_TRUE(just_time == L"time", "substring of second half of string did not match: %wZ", just_time.data());
+		constexpr ktl::unicode_string_view just_ompile{ compile_time.substr(1, 6) };
+		ASSERT_TRUE(just_ompile == L"ompile", "substring of first half of string did not match: %wZ", just_ompile.data());
+		constexpr ktl::unicode_string_view just_compile{ compile_time.substr(0, 7) };
+		ASSERT_TRUE(just_compile == L"compile", "substring of first half of string did not match: %wZ", just_compile.data());
+
+		// ends_with
+		ASSERT_TRUE(compile_time.ends_with(L"_time"), "ends_with failed to find correct string end");
+		ASSERT_TRUE(compile_time.ends_with(L""), "ends_with failed with empty string");
+		ASSERT_FALSE(compile_time.ends_with(L"compile"), "ends_with found incorrect ending substring");
+
+		// starts_with
+		ASSERT_TRUE(compile_time.starts_with(L"compile"), "starts_with failed to find correct string start");
+		ASSERT_TRUE(compile_time.starts_with(L""), "starts_with failed with empty string");
+		ASSERT_FALSE(compile_time.starts_with(L"time"), "starts_with found incorrect starting substring");
+
+		// size
+		ASSERT_TRUE(compile_time.size() == 12, "unexpected string view size");
+		ASSERT_TRUE(compile_time.byte_size() == 12 * sizeof(wchar_t), "unexpected string view size");
+
+		ktl::unicode_string heap_string = L"heap";
+		ktl::unicode_string_view heap_string_view = heap_string;
+		ktl::unicode_string_view copy_construct_heap_view = heap_string;
+		ASSERT_TRUE(heap_string_view.data()->Buffer == heap_string.data()->Buffer, "copy assigned string view did not point to original string");
+		ASSERT_TRUE(copy_construct_heap_view.data()->Buffer == heap_string.data()->Buffer, "copy constructed string view did not point to original string");
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{

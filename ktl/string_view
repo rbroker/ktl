@@ -9,6 +9,9 @@
 
 namespace ktl
 {
+	template<pool_type POOL>
+	struct pool_unicode_string;
+
 	struct unicode_string_view
 	{
 		static const size_t npos = MAXSIZE_T;
@@ -44,9 +47,21 @@ namespace ktl
 			str_.MaximumLength *= sizeof(wchar_t);
 		}
 
-		unicode_string_view(const unicode_string_view& other) :
+		constexpr unicode_string_view(const unicode_string_view& other) :
 			str_(other.str_)
 		{
+		}
+
+		template<pool_type T>
+		unicode_string_view(const pool_unicode_string<T>& other) :
+			str_(other.str_)
+		{
+		}
+
+		template<pool_type T>
+		unicode_string_view& operator=(const pool_unicode_string<T>& other)
+		{
+			str_ = other.str_;
 		}
 
 		/// <summary>
@@ -90,7 +105,7 @@ namespace ktl
 			return data();
 		}
 
-		constexpr unicode_string_view substr(size_t pos = 0, size_t count = npos)
+		constexpr unicode_string_view substr(size_t pos = 0, size_t count = npos) const
 		{
 			if (pos > size())
 				return {};
@@ -102,8 +117,7 @@ namespace ktl
 			return sub;
 		}
 
-		template<typename string_type>
-		constexpr bool starts_with(const string_type& prefix)
+		bool starts_with(unicode_string_view prefix) const
 		{
 			if (size() < prefix.size())
 				return false;
@@ -112,8 +126,7 @@ namespace ktl
 			return sub == prefix;
 		}
 
-		template<typename string_type>
-		constexpr bool ends_with(const string_type& suffix)
+		bool ends_with(unicode_string_view suffix) const
 		{
 			if (size() < suffix.size())
 				return false;
@@ -122,19 +135,23 @@ namespace ktl
 			return sub == suffix;
 		}
 
-		template<typename string_type>
-		constexpr bool operator==(const string_type& other) const
+		bool operator==(const unicode_string_view& other) const
 		{
 			return compare(other) == 0;
 		}
 
-		constexpr bool operator!=(const unicode_string_view& other) const
+		bool operator!=(const unicode_string_view& other) const
 		{
 			return compare(other) != 0;
 		}
 
-		template<class T>
-		constexpr int compare(const T& other, bool caseInsensitive = false) const
+		int compare(const unicode_string_view& other, bool caseInsensitive = false) const
+		{
+			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
+		}
+
+		template<pool_type OTHER_POOL_TYPE>
+		int compare(const pool_unicode_string<OTHER_POOL_TYPE>& other, bool caseInsensitive = false) const
 		{
 			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
 		}
