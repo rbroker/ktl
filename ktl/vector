@@ -310,7 +310,7 @@ namespace ktl
 			{
 				if constexpr (is_trivially_copyable_v<T>)
 				{
-					RtlMoveMemory(&(buffer_[b]), &(buffer_[b + 1]), (size() - b) * sizeof(T));
+					RtlMoveMemory(addressof(buffer_[b]), addressof(buffer_[b + 1]), (size() - b) * sizeof(T));
 				}
 				else
 				{

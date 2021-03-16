@@ -125,17 +125,17 @@ namespace ktl
 				KTL_LOG_ERROR("Failed to reserve initial set storage!\n");
 		}
 
-		[[nodiscard]] size_t size() const
+		inline [[nodiscard]] size_t size() const
 		{
 			return size_;
 		}
 
-		[[nodiscard]] size_t bucket_count() const
+		inline [[nodiscard]] size_t bucket_count() const
 		{
 			return table_.size();
 		}
 
-		[[nodiscard]] bool empty() const
+		inline [[nodiscard]] bool empty() const
 		{
 			return size() == 0;
 		}
