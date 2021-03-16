@@ -279,6 +279,7 @@ bool test_unicode_string()
 		ASSERT_TRUE(from_string.size() == 9, "string constructed from string has unexpected length: %llu", from_string.size());
 		ASSERT_TRUE(default_constructed.empty(), "default constructed string was not empty");
 		ASSERT_TRUE(default_constructed.size() == 0, "default constructed string had non-zero size: %llu", default_constructed.size());
+		ASSERT_FALSE(from_literal.data()->Buffer == from_string.data()->Buffer, "copied string points to same buffer as original!");
 
 		ASSERT_TRUE(from_literal == from_string, "constructed strings did not match");
 
@@ -386,6 +387,7 @@ bool test_unicode_string_view()
 		ASSERT_TRUE(compile_time.size() == 12, "unexpected string view size");
 		ASSERT_TRUE(compile_time.byte_size() == 12 * sizeof(wchar_t), "unexpected string view size");
 
+		// copy construct/assign.
 		ktl::unicode_string heap_string = L"heap";
 		ktl::unicode_string_view heap_string_view = heap_string;
 		ktl::unicode_string_view copy_construct_heap_view = heap_string;
