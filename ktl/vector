@@ -168,9 +168,16 @@ namespace ktl
 			if (!tmp)
 				return false;
 
-			for (size_t i = 0; i < size(); ++i)
+			if constexpr (is_trivially_copyable_v<T>)
 			{
-				tmp[i] = move(buffer_[i]);
+				RtlMoveMemory(tmp.get(), buffer_.get(), size() * sizeof(T));
+			}
+			else
+			{
+				for (size_t i = 0; i < size(); ++i)
+				{
+					tmp[i] = move(buffer_[i]);
+				}
 			}
 
 			capacity_ = newSize;

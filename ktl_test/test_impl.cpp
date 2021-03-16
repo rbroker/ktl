@@ -22,6 +22,9 @@ struct complex_object
 	ktl::unicode_string Name;
 	int Value = 5;
 	ktl::vector<int> Vec;
+
+private:
+	int NonStandard;
 };
 
 bool test_set()
@@ -163,6 +166,9 @@ bool test_vector()
 		ASSERT_TRUE(strVec.size() == 2, "incorrect size after pushing strings");
 		ASSERT_TRUE(strVec[0] == L"string", "invalid value in vector after pushing string");
 		ASSERT_TRUE(strVec[1] == L"other", "invalid value in vector after pushing string");
+
+		static_assert(!ktl::is_trivially_copyable_v<complex_object>);
+		static_assert(!ktl::is_standard_layout_v<complex_object>);
 
 		ktl::vector<complex_object> structVec;
 		ASSERT_TRUE(structVec.emplace_back(L"hello world", 10), "failed to emplace first structure in vector");

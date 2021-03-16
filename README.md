@@ -47,17 +47,17 @@ DriverUnload(
 | cstddef | `nullptr_t` | |
 | cstdint | `int8_t` -> `uint64_t` | |
 | kernel | `floating_point_state`, `auto_irp`, `safe_user_buffer`, `object_attributes` | `ktl::floating_point_state` is needed for using [x87 floating point](https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-kesaveextendedprocessorstate).
-| limits | `<T>min`, `<T>max` | For everything in cstdint |
+| limits | `<T>min`, `<T>max` | For your typical fixed-width integer types in cstdint |
 | list | `list<T>` | Based on kernel [LIST_ENTRY](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-list_entry) |
 | memory | `addressof`, `unique_ptr<T>`, `observer_ptr<T>`, `make_unique<T>` | |
 | mutex | `scoped_lock`, `mutex` | No deadlock-avoiding lock, based on [FAST_MUTEX](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/eprocess) |
-| new | `new`, `delete`, `new[]`, `delete[]`, placement `new` | Normal STL new/deletes, plus new overloaded with `ktl::pool_type`. All news are non-throwing. |
+| new | `new`, `delete`, `new[]`, `delete[]`, placement `new` | You must use either placement new, or operator new overloaded with `ktl::pool_type`. All news are non-throwing. |
 | set | `set<T>` | *unordered* set implementation. |
 | shared_mutex | `shared_lock`, `shared_mutex` | reader-writer locking based on [ERESOURCE](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/introduction-to-eresource-routines) |
 | string | `unicode_string` | No `string` or `wstring`, everything is UTF-16 [UNICODE_STRING](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-_unicode_string). |
 | string_view | `unicode_string_view` | For the performance-conscious [UNICODE_STRING](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-_unicode_string) user. |
-| type_traits | | Just enough for built-in features!
-| utility | `pair<T1, T2>` | |
+| type_traits | `is_trivially_copyable_v`, `is_standard_layout_v` | Just enough for built-in features! |
+| utility | `pair<T1, T2>`, `scope_exit` | |
 | vector | `vector<T>` | Fan favourite, probably far from optimised. |
 | wdf | | Various WDF helper classes |
 
@@ -72,7 +72,7 @@ ktl-ctl.exe supports the usermode driver controls:
 ## STL?
 I've abused the STL header names, but this is not an STL reimplementation, and even the bits that look similar aren't intended to be remotely standards compliant. There's a number of change-points from a typical STL implementation to account for operating in kernel-mode, and without C++ exceptions. Some things possibly worth bearing in mind:
 
-- The `new` header defines an overload of `operator new` which accepts a `ktl::pool_type` parameter. This allows allocations to come from either the paged, or unpaged pools.
+- The `new` header defines an overload of `operator new` which accepts a `ktl::pool_type` parameter. This allows allocations to come from either the paged, or non-paged pools.
     - Scalar and array versions of `make_unique` also support supporting the pool type.
 ```C++
 static ktl::unique_ptr<GlobalState> g_state = ktl::make_unique<GlobalState>(ktl::pool_type::NonPaged);
