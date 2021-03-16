@@ -56,10 +56,11 @@ bool test_set()
 		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"c" }), "failed to insert string into set");
 		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"d" }), "failed to insert string into set");
 		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"$" }), "failed to insert string into set");
-		/*ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"¢" }), "failed to insert string into set");
+		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"¢" }), "failed to insert string into set");
 		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"ह" }), "failed to insert string into set");
 		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"€" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"𐍈" }), "failed to insert string into set");*/
+		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"𐍈" }), "failed to insert string into set");
+		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"よろしくお願いします。" }), "failed to insert string into set");
 
 		// find
 		{
@@ -73,6 +74,17 @@ bool test_set()
 			ASSERT_TRUE(it != set.end(), "unable to find expected entry in set");
 			ASSERT_TRUE(*it == L"corgi", "found entry didn't contain expected value: %wZ", it->data());
 		}
+
+		// find multi-wchar_t character string
+		{
+			auto it = set.find(ktl::unicode_string_view{ L"𐍈" });
+			ASSERT_TRUE(it != set.end(), "unable to find expected entry in set");
+			ASSERT_TRUE(*it == L"𐍈", "found entry didn't contain expected value: %wZ", it->data());
+		}
+
+		ktl::unicode_string extended_code_points{ L"𐍈" };
+		ASSERT_TRUE(extended_code_points.byte_size() == (sizeof(L"𐍈") - sizeof(UNICODE_NULL)), "unexpected byte count for extended code point: %llu", extended_code_points.byte_size());
+		ASSERT_TRUE(extended_code_points.size() == (sizeof(L"𐍈") - sizeof(UNICODE_NULL)) / sizeof(wchar_t), "unexpected character count for extended code point: %llu", extended_code_points.size());
 
 		// iteration & erase
 		ASSERT_TRUE(set.find(ktl::unicode_string_view{ L"$" }) != set.end(), "unable to find expected entry in set");
