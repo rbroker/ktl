@@ -124,13 +124,15 @@ namespace ktl
 	template<class T>
 	using remove_extent_t = typename remove_extent<T>::type;
 
+	// ktl::is_trivially_copyable_v
 	template<class T>
 	inline constexpr bool is_trivially_copyable_v = __is_trivially_copyable(T);
 
+	// ktl::is_standard_layout_v
 	template<class T>
 	inline constexpr bool is_standard_layout_v = __is_standard_layout(T);
 
-	// hash
+	// ktl::hash
 	using hash_t = uint64_t;
 
 	template<typename T>
