@@ -314,6 +314,8 @@ namespace ktl
 				}
 				else
 				{
+					buffer_[b].~T();
+
 					for (size_t current = b; current < e; ++current)
 					{
 						auto next = current + 1;
