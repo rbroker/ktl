@@ -249,7 +249,7 @@ void* operator new(size_t n, ktl::pool_type pool)
 // Global Pool Array New
 void* operator new[](size_t n, ktl::pool_type pool)
 {
-	return ktl::pool_alloc(n, pool); ;
+	return ktl::pool_alloc(n, pool);
 }
 
 // Placement New.

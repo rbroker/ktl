@@ -75,7 +75,7 @@ bool test_set()
 			ASSERT_TRUE(*it == L"corgi", "found entry didn't contain expected value: %wZ", it->data());
 		}
 
-		// find multi-wchar_t character string
+		// find code unit character string
 		{
 			auto it = set.find(ktl::unicode_string_view{ L"𐍈" });
 			ASSERT_TRUE(it != set.end(), "unable to find expected entry in set");
