@@ -253,7 +253,7 @@ namespace ktl
 			{
 				if (!reserve(newSize))
 				{
-					KTL_LOG_ERROR("Failed to allocate for resize: %lu -> %lu\n", size(), newSize);
+					KTL_LOG_ERROR("Failed to allocate for resize: %lu -> %llu\n", size(), newSize);
 					return false;
 				}
 

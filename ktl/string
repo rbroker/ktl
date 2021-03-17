@@ -138,7 +138,7 @@ namespace ktl
 		{
 			if (newSize > max_size())
 			{
-				KTL_LOG_ERROR("Requested string length %lu is too large. Limit is %lu.\n", newSize, max_size());
+				KTL_LOG_ERROR("Requested string length %lu is too large. Limit is %llu.\n", newSize, max_size());
 				return false;
 			}
 
@@ -228,7 +228,7 @@ namespace ktl
 		{
 			if (!byte_reserve(byte_size() + str.byte_size()))
 			{
-				KTL_LOG_ERROR("Unable to resize string from %lu -> %lu\n", size(), size() + str.size());
+				KTL_LOG_ERROR("Unable to resize string from %llu -> %llu\n", size(), size() + str.size());
 				return *this;
 			}
 
