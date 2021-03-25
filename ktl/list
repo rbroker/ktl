@@ -21,7 +21,7 @@ namespace ktl
 		}
 
 		list_element(T&& value) :
-			Value{value}
+			Value{ move(value) }
 		{
 		}
 
@@ -29,11 +29,6 @@ namespace ktl
 		list_element(Args&&... args) :
 			Value{ args... }
 		{
-		}
-
-		void* operator new(size_t count)
-		{
-			return pool_alloc(count, POOL);
 		}
 
 		LIST_ENTRY Entry = {};
@@ -71,6 +66,13 @@ namespace ktl
 		list_iterator(const list_iterator& other) :
 			list_iterator(other.head_, other.curr_)
 		{
+		}
+
+		list_iterator& operator=(const list_iterator& other)
+		{
+			head_ = other.head_;
+			curr_ = other.curr_;
+			return *this;
 		}
 
 		[[nodiscard]] reference operator*() const
@@ -142,14 +144,15 @@ namespace ktl
 		}
 
 	private:
-		const PLIST_ENTRY head_;
+		PLIST_ENTRY head_;
 		PLIST_ENTRY curr_;
 	};
 
 	template<typename T, pool_type POOL = pool_type::NonPaged>
 	struct list
 	{
-		using element_type = list_element<T, POOL>;
+		using value_type = remove_reference_t<T>;
+		using element_type = list_element<value_type, POOL>;
 		using iterator = list_iterator<element_type>;
 
 		list()
@@ -162,19 +165,14 @@ namespace ktl
 			clear();
 		}
 
-		void* operator new(size_t count)
-		{
-			return pool_alloc(count, POOL);
-		}
-
 		/// <summary>
 		/// push element to back of list.
 		/// </summary>
 		/// <param name="value">new value</param>
 		/// <returns>true if element successfully added, else false</returns>
-		[[nodiscard]] bool push_back(const T& value)
+		[[nodiscard]] bool push_back(const value_type& value)
 		{
-			auto newElement = new element_type(value);
+			auto newElement = new (POOL) element_type(value);
 			if (!newElement)
 				return false;
 
@@ -189,7 +187,7 @@ namespace ktl
 		/// </summary>
 		/// <param name="value">new value</param>
 		/// <returns>true if element successfully added, else false</returns>
-		[[nodiscard]] bool push_back(T&& value)
+		[[nodiscard]] bool push_back(value_type&& value)
 		{
 			auto newElement = new element_type(value);
 			if (!newElement)
@@ -207,9 +205,9 @@ namespace ktl
 		/// <param name="...args">construction arguments for the added element</param>
 		/// <returns>Returns an observer_ptr to the emplaced object, or an empty (nullptr) observer_ptr</returns>
 		template<class... Args>
-		observer_ptr<T> emplace_back(Args&&... args)
+		observer_ptr<value_type> emplace_back(Args&&... args)
 		{
-			auto newElement = new element_type(forward<Args>(args)...);
+			auto newElement = new (POOL) element_type(forward<Args>(args)...);
 			if (!newElement)
 				return {};
 
@@ -217,7 +215,7 @@ namespace ktl
 
 			++size_;
 
-			return observer_ptr<T>{ &newElement->Value };
+			return observer_ptr<value_type>{ &newElement->Value };
 		}
 
 		iterator erase(iterator it)
@@ -247,7 +245,7 @@ namespace ktl
 		/// <returns>true if element successfully added, else false</returns>
 		[[nodiscard]] bool push_front(const T& value)
 		{
-			auto newElement = new element_type(value);
+			auto newElement = new (POOL) element_type(value);
 			if (!newElement)
 				return false;
 
@@ -262,9 +260,9 @@ namespace ktl
 		/// </summary>
 		/// <param name="value">new value</param>
 		/// <returns>true if element successfully added, else false</returns>
-		[[nodiscard]] bool push_front(T&& value)
+		[[nodiscard]] bool push_front(value_type&& value)
 		{
-			auto newElement = new element_type(value);
+			auto newElement = new (POOL) element_type(value);
 			if (!newElement)
 				return false;
 
@@ -280,9 +278,9 @@ namespace ktl
 		/// <param name="...args">construction arguments for the added element</param>
 		/// <returns>Returns an observer_ptr to the emplaced object, or an empty (nullptr) observer_ptr</returns>
 		template<class... Args>
-		observer_ptr<T> emplace_front(Args&&... args)
+		observer_ptr<value_type> emplace_front(Args&&... args)
 		{
-			auto newElement = new element_type(foward<Args>(args)...);
+			auto newElement = new (POOL) element_type(forward<Args>(args)...);
 			if (!newElement)
 				return {};
 
@@ -290,7 +288,7 @@ namespace ktl
 
 			++size_;
 
-			return observer_ptr<T>{&newElement->Value};
+			return observer_ptr<value_type>{&newElement->Value};
 		}
 
 		void pop_back()
@@ -309,14 +307,14 @@ namespace ktl
 			--size_;
 		}
 
-		[[nodiscard]] T& back()
+		[[nodiscard]] value_type& back()
 		{
-			return CONTAINING_RECORD(head_->Blink, element_type, Entry)->Value;
+			return CONTAINING_RECORD(head_.Blink, element_type, Entry)->Value;
 		}
 
-		[[nodiscard]] T& front()
+		[[nodiscard]] value_type& front()
 		{
-			return CONTAINING_RECORD(head_->Flink, element_type, Entry)->Value;
+			return CONTAINING_RECORD(head_.Flink, element_type, Entry)->Value;
 		}
 
 		[[nodiscard]] size_t size() const

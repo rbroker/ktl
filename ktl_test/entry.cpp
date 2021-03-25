@@ -216,6 +216,8 @@ KtlTestFileIoDeviceControl(
     case IOCTL_KTLTEST_METHOD_ALGORITHM_TEST:
         break;
     case IOCTL_KTLTEST_METHOD_LIST_TEST:
+        if (!test_list())
+            status = STATUS_FAIL_CHECK;
         break;
     case IOCTL_KTLTEST_METHOD_MEMORY_TEST:
         break;
