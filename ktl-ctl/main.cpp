@@ -153,13 +153,15 @@ void DriverTest()
 	std::mutex mtx;
 	std::vector<std::system_error> errors;
 
-	std::thread listTestThr(RunTest, IOCTL_KTLTEST_METHOD_LIST_TEST, &errors, &mtx, "ktl::list");
-	std::thread setTestThr(RunTest, IOCTL_KTLTEST_METHOD_SET_TEST, &errors, &mtx, "ktl::set");
-	std::thread vectorTestThr(RunTest, IOCTL_KTLTEST_METHOD_VECTOR_TEST, &errors, &mtx, "ktl::vector");
-	std::thread stringTestThr(RunTest, IOCTL_KTLTEST_METHOD_STRING_TEST, &errors, &mtx, "ktl::unicode_string");
-	std::thread stringViewTestThr(RunTest, IOCTL_KTLTEST_METHOD_STRING_VIEW_TEST, &errors, &mtx, "ktl::unicode_string_view");
+	std::thread listTestThr(RunTest, IOCTL_KTLTEST_METHOD_LIST_TEST, &errors, &mtx, "<list>");
+	std::thread memoryTestThr(RunTest, IOCTL_KTLTEST_METHOD_MEMORY_TEST, &errors, &mtx, "<memory>");
+	std::thread setTestThr(RunTest, IOCTL_KTLTEST_METHOD_SET_TEST, &errors, &mtx, "<set>");
+	std::thread vectorTestThr(RunTest, IOCTL_KTLTEST_METHOD_VECTOR_TEST, &errors, &mtx, "<vector>");
+	std::thread stringTestThr(RunTest, IOCTL_KTLTEST_METHOD_STRING_TEST, &errors, &mtx, "<unicode_string>");
+	std::thread stringViewTestThr(RunTest, IOCTL_KTLTEST_METHOD_STRING_VIEW_TEST, &errors, &mtx, "<unicode_string_view>");
 
 	listTestThr.join();
+	memoryTestThr.join();
 	setTestThr.join();
 	vectorTestThr.join();
 	stringTestThr.join();

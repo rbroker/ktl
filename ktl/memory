@@ -15,7 +15,9 @@ namespace ktl
 	template<class T>
 	struct unique_ptr
 	{
-		using pointer = remove_reference_t<T>*;
+		using value_type = remove_reference_t<T>;
+		using pointer = value_type*;
+		using reference = value_type&;
 
 		unique_ptr()
 		{
@@ -35,6 +37,11 @@ namespace ktl
 		{
 			reset(other.release());
 			return *this;
+		}
+
+		reference operator*() const
+		{
+			return *p_;
 		}
 
 		pointer operator->() const
@@ -87,8 +94,9 @@ namespace ktl
 	template<class T>
 	struct unique_ptr<T[]>
 	{
-		using pointer = remove_reference_t<remove_extent_t<T>>*;
-		using reference = remove_reference_t<remove_extent_t<T>>&;
+		using value_type = remove_reference_t<remove_extent_t<T>>;
+		using pointer = value_type*;
+		using reference = value_type&;
 		using element_type = T;
 
 		unique_ptr()
@@ -109,6 +117,11 @@ namespace ktl
 		{
 			reset(other.release());
 			return *this;
+		}
+
+		reference operator*() const
+		{
+			return *p_;
 		}
 
 		pointer operator->() const
@@ -254,14 +267,14 @@ namespace ktl
 
 	// ktl::make_unique - scalar
 	template<class T, class... Args, enable_if_t<!is_array_v<T>, int> = 0>
-	[[nodiscard]] unique_ptr<T> make_unique(Args&&... args, pool_type pool = pool_type::NonPaged)
+	[[nodiscard]] unique_ptr<T> make_unique(pool_type pool, Args&&... args)
 	{
 		return unique_ptr<T>(new (pool) T(forward<Args>(args)...));
 	}
 
 	// ktl::make_unique - array
-	template<class T, class... Args, enable_if_t<is_array_v<T> && extent_v<T> == 0, int> = 0>
-	[[nodiscard]] unique_ptr<T> make_unique(size_t size, pool_type pool = pool_type::NonPaged)
+	template<class T, enable_if_t<is_array_v<T> && extent_v<T> == 0, int> = 0>
+	[[nodiscard]] unique_ptr<T> make_unique(pool_type pool, size_t size)
 	{
 		return unique_ptr<T>(new (pool) remove_extent_t<T>[size]());
 	}

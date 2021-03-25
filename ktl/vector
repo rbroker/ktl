@@ -164,7 +164,7 @@ namespace ktl
 			if (capacity() >= newSize)
 				return true;
 
-			unique_ptr<T[]> tmp = make_unique<T[]>(newSize, POOL);
+			unique_ptr<T[]> tmp = make_unique<T[]>(POOL, newSize);
 			if (!tmp)
 				return false;
 

@@ -25,3 +25,4 @@ bool test_vector();
 bool test_unicode_string();
 bool test_unicode_string_view();
 bool test_list();
+bool test_memory();
