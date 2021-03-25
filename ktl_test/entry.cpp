@@ -33,7 +33,7 @@ extern "C"
 #pragma alloc_text( PAGE, KtlTestDriverContextCleanup )
 #endif
 
-static ktl::unique_ptr<KtlGlobalState> State{ new (ktl::pool_type::NonPaged) KtlGlobalState };
+static auto State = ktl::make_unique<KtlGlobalState>(ktl::pool_type::NonPaged);
 
 NTSTATUS
 DriverEntry(
