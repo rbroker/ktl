@@ -222,6 +222,13 @@ KtlTestFileIoDeviceControl(
     case IOCTL_KTLTEST_METHOD_MEMORY_TEST:
         if (!test_memory())
             status = STATUS_FAIL_CHECK;
+
+        if (State.get() == nullptr)
+        {
+            LOG_ERROR("KTL dynamic initialization was not successful! Global static unique_ptr doesn't hold a value.\n");
+            status = STATUS_FAIL_CHECK;
+        }
+
         break;
     case IOCTL_KTLTEST_METHOD_SET_TEST:
         if (!test_set())

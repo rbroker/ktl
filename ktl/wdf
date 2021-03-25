@@ -72,7 +72,7 @@ namespace ktl
 
 	struct wdf_io_queue_config
 	{
-		wdf_io_queue_config(WDF_IO_QUEUE_DISPATCH_TYPE dispatch = WdfIoQueueDispatchSequential)
+		wdf_io_queue_config(WDF_IO_QUEUE_DISPATCH_TYPE dispatch = WdfIoQueueDispatchParallel)
 		{
 			WDF_IO_QUEUE_CONFIG_INIT_DEFAULT_QUEUE(&config_, dispatch);
 		}

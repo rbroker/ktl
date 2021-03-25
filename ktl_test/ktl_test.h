@@ -4,6 +4,7 @@
 
 #include <ktl_shared.h>
 
+#include <memory>
 #include <shared_mutex>
 #include <string>
 

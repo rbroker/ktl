@@ -47,7 +47,7 @@ namespace ktl
 	using __pvfv = void(__cdecl*)(void);
 	using __pifv = int(__cdecl*)(void);
 
-	/* Dynamic initializers are placed in .CRT$XCU, so we define XCA and XCZ as start/end_ pointers
+	/* Dynamic initializers are placed in .CRT$XCU, so we define XCA and XCZ as start/end pointers
 	 *  same as the usermode CRT. That'll let us spin through the table of initializer functions
 	 *  and call them all in turn.
 	 */
@@ -88,7 +88,7 @@ namespace ktl
 	PKSPIN_LOCK __at_exit_lock = nullptr;
 
 	// https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-initialization?view=msvc-160
-	// This will call every function pointer between start & end_, skipping null function pointers.
+	// This will call every function pointer between start & end, skipping null function pointers.
 	void walk_function_table(__pvfv* start, __pvfv* end)
 	{
 		for (auto curr = start; curr < end; ++curr)
