@@ -26,6 +26,7 @@ void print_help()
 	std::wcout << L"ktl-ctl.exe start" << std::endl;
 	std::wcout << L"ktl-ctl.exe stop" << std::endl;
 	std::wcout << L"ktl-ctl.exe test" << std::endl;
+	std::wcout << L"ktl-ctl.exe soak" << std::endl;
 }
 
 void DriverInstall(const std::wstring& inf_path)
@@ -214,6 +215,18 @@ int wmain(int argc, wchar_t** argv)
 			DriverStart();
 			DriverTest();
 			DriverStop();
+		}
+		else if (command == L"soak")
+		{
+			for (int j = 0; j < 5; ++j)
+			{
+				DriverStart();
+				for (int i = 0; i < 500; ++i)
+				{
+					DriverTest();
+				}
+				DriverStop();
+			}
 		}
 	}
 	catch (std::system_error& ex)

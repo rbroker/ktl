@@ -15,8 +15,8 @@ extern "C"
     DRIVER_INITIALIZE DriverEntry;
     EVT_WDF_DEVICE_FILE_CREATE KtlTestCreate;
     EVT_WDF_FILE_CLOSE KtlTestClose;
-    EVT_WDF_IO_QUEUE_IO_READ KtlTestFileIoRead;
-    EVT_WDF_IO_QUEUE_IO_WRITE KtlTestFileIoWrite;
+    /*EVT_WDF_IO_QUEUE_IO_READ KtlTestFileIoRead;
+    EVT_WDF_IO_QUEUE_IO_WRITE KtlTestFileIoWrite;*/
     EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL KtlTestFileIoDeviceControl;
     EVT_WDF_IO_IN_CALLER_CONTEXT KtlTestDeviceIoInCallerContext;
     EVT_WDF_DEVICE_SHUTDOWN_NOTIFICATION KtlTestDriverShutdown;
@@ -100,15 +100,9 @@ DriverEntry(
     }
 
     ktl::wdf_io_queue_config ioQueueConfig;
-    ioQueueConfig->EvtIoRead = KtlTestFileIoRead;
-    ioQueueConfig->EvtIoWrite = KtlTestFileIoWrite;
     ioQueueConfig->EvtIoDeviceControl = KtlTestFileIoDeviceControl;
 
-    WDFQUEUE queue;
-    WDF_OBJECT_ATTRIBUTES_INIT(&attributes);
-    status = WdfIoQueueCreate(controlDevice, &ioQueueConfig,
-        &attributes,
-        &queue);
+    status = State->DefaultQueue.create(controlDevice, ioQueueConfig);
     if (!NT_SUCCESS(status))
     {
         LOG_ERROR("WdfIoQueueCreate() failed: %#x\n", status);
@@ -155,41 +149,6 @@ KtlTestClose(
     UNREFERENCED_PARAMETER(FileObject);
 
     PAGED_CODE();
-
-    return;
-}
-
-VOID
-KtlTestFileIoRead(
-    IN WDFQUEUE         Queue,
-    IN WDFREQUEST       Request,
-    IN size_t            Length
-)
-{
-    UNREFERENCED_PARAMETER(Queue);
-    UNREFERENCED_PARAMETER(Length);
-
-    NTSTATUS status;
-
-    ktl::wdf_auto_request request{ Request, status };
-    request.set_information(0);
-
-    return;
-}
-
-VOID KtlTestFileIoWrite(
-    IN WDFQUEUE         Queue,
-    IN WDFREQUEST       Request,
-    IN size_t            Length
-)
-{
-    UNREFERENCED_PARAMETER(Queue);
-    UNREFERENCED_PARAMETER(Length);
-
-    NTSTATUS status;
-
-    ktl::wdf_auto_request request{ Request, status };
-    request.set_information(0);
 
     return;
 }
@@ -297,6 +256,8 @@ KtlTestDriverUnload(
     UNREFERENCED_PARAMETER(DriverObject);
 
     PAGED_CODE();
+
+    State->DefaultQueue.drain();
 
     ktl::unload_runtime();
 }

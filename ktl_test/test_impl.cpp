@@ -1,10 +1,13 @@
 ﻿#include "test.h"
 
+#include <cstdint>
 #include <memory>
 #include <list>
 #include <set>
 #include <string>
 #include <vector>
+
+const ktl::uint64_t ONE_SECOND = 5 * 10000000;
 
 struct complex_copyable_object
 {
@@ -31,7 +34,7 @@ struct complex_copyable_object
 	ktl::vector<int> Vec;
 
 private:
-	int NonStandard;
+	int NonStandard = -5;
 };
 
 struct complex_object
@@ -689,6 +692,6 @@ bool test_memory()
 		return false;
 	}
 
-	LOG_TRACE("[OK] ktl::list!\n");
+	LOG_TRACE("[OK] ktl::memory!\n");
 	return true;
 }

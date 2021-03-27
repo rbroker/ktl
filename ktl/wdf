@@ -257,4 +257,41 @@ namespace ktl
 		WDFREQUEST* request_;
 		NTSTATUS& status_;
 	};
+
+	struct wdf_io_queue
+	{
+		wdf_io_queue()
+		{
+		}
+
+		wdf_io_queue(wdf_io_queue&& other) :
+			queue_(move(other.queue_))
+		{
+		}
+
+		wdf_io_queue(const wdf_io_queue&) = delete;
+		wdf_io_queue& operator=(const wdf_io_queue&) = delete;
+
+		NTSTATUS create(WDFDEVICE controlDevice, wdf_io_queue_config& config)
+		{
+			return WdfIoQueueCreate(controlDevice, &config, WDF_NO_OBJECT_ATTRIBUTES, &queue_);
+		}
+
+		void drain()
+		{
+			WdfIoQueueDrainSynchronously(queue_);
+		}
+
+		~wdf_io_queue()
+		{
+		}
+
+		operator bool()
+		{
+			return queue_ != nullptr;
+		}
+
+	private:
+		WDFQUEUE queue_ = nullptr;
+	};
 }
