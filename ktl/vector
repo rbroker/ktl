@@ -188,34 +188,12 @@ namespace ktl
 
 		[[nodiscard]] bool push_back(const T& value)
 		{
-			if (!reserve_grow())
-				return false;
-
-			auto p = addressof(data()[size_++]);
-			observer_ptr<T> ptr = new (p) T{ value };
-			if (!ptr)
-			{
-				--size_;
-				return false;
-			}
-
-			return true;
+			return emplace_back(value).has_value();
 		}
 
 		[[nodiscard]] bool push_back(T&& value)
 		{
-			if (!reserve_grow())
-				return false;
-
-			auto p = addressof(data()[size_++]);
-			observer_ptr<T> ptr = new (p) T{ move(value) };
-			if (!ptr)
-			{
-				--size_;
-				return false;
-			}
-
-			return true;
+			return emplace_back(value).has_value();
 		}
 
 		template<class... Args>
