@@ -15,8 +15,6 @@ extern "C"
     DRIVER_INITIALIZE DriverEntry;
     EVT_WDF_DEVICE_FILE_CREATE KtlTestCreate;
     EVT_WDF_FILE_CLOSE KtlTestClose;
-    /*EVT_WDF_IO_QUEUE_IO_READ KtlTestFileIoRead;
-    EVT_WDF_IO_QUEUE_IO_WRITE KtlTestFileIoWrite;*/
     EVT_WDF_IO_QUEUE_IO_DEVICE_CONTROL KtlTestFileIoDeviceControl;
     EVT_WDF_IO_IN_CALLER_CONTEXT KtlTestDeviceIoInCallerContext;
     EVT_WDF_DEVICE_SHUTDOWN_NOTIFICATION KtlTestDriverShutdown;
