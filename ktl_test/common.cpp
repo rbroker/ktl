@@ -10,16 +10,12 @@
 /// </summary>
 void SerializingDebugPrint(ULONG componentId, ULONG level, PCSTR format, ...)
 {
-#ifdef _DEBUG
 	static ktl::mutex m{};
-#endif
 
 	va_list args;
 	va_start(args, format);
 
-#ifdef _DEBUG
 	ktl::scoped_lock lock(m);
-#endif
 
 	DbgPrintEx(componentId, level, format, args);
 
