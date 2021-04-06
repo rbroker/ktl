@@ -235,7 +235,7 @@ namespace ktl
 	}
 }
 
-int atexit(void(__cdecl* func)(void))
+int __cdecl atexit(void(__cdecl* func)(void))
 {
 	return ktl::atexit(func);
 }
@@ -260,24 +260,24 @@ void* operator new(size_t n, void* p)
 }
 
 // Global Deletes
-void operator delete(void* p)
+void __cdecl operator delete(void* p)
 {
 	ktl::pool_free(p);
 }
 
-void operator delete(void* p, size_t n)
+void __cdecl operator delete(void* p, size_t n)
 {
 	UNREFERENCED_PARAMETER(n);
 
 	ktl::pool_free(p);
 }
 
-void operator delete[](void* p)
+void __cdecl operator delete[](void* p)
 {
 	ktl::pool_free(p);
 }
 
-void operator delete[](void* p, size_t n)
+void __cdecl operator delete[](void* p, size_t n)
 {
 	UNREFERENCED_PARAMETER(n);
 

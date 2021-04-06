@@ -24,5 +24,5 @@ namespace ktl
 	void unload_runtime();
 }
 
-int atexit(void(__cdecl* func)(void));
+int __cdecl atexit(void(__cdecl* func)(void));
 #endif

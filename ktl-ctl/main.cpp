@@ -6,6 +6,7 @@
 #include <iostream>
 #include <filesystem>
 #include <mutex>
+#include <new>
 #include <string>
 #include <system_error>
 #include <thread>

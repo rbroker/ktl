@@ -22,7 +22,7 @@ void* operator new[](size_t n, ktl::pool_type pool);
 void* operator new(size_t n, void* p);
 
 // Global deletes
-void operator delete(void* p);
-void operator delete(void* p, size_t n);
-void operator delete[](void* p);
-void operator delete[](void* p, size_t n);
+void __cdecl operator delete(void* p);
+void __cdecl operator delete(void* p, size_t n);
+void __cdecl operator delete[](void* p);
+void __cdecl operator delete[](void* p, size_t n);

@@ -148,7 +148,13 @@ namespace ktl
 			auto h = hash<T>{}(value);
 			auto bucketIdx = h % bucket_count();
 
-			auto& bucket = table_[bucketIdx];
+			if constexpr (sizeof(hash_t) != sizeof(size_t))
+			{
+				if (bucketIdx > numeric_limits<size_t>::max())
+					return false;
+			}
+
+			auto& bucket = table_[static_cast<size_t>(bucketIdx)];
 
 			auto it = find_if(bucket.begin(), bucket.end(), [&](const auto& element) -> bool
 				{
@@ -178,7 +184,13 @@ namespace ktl
 			auto h = hash<T>{}(key);
 			auto bucketIdx = h % bucket_count();
 
-			auto& bucket = table_[bucketIdx];
+			if constexpr (sizeof(hash_t) != sizeof(size_t))
+			{
+				if (bucketIdx > numeric_limits<size_t>::max())
+					return iterator{};
+			}
+
+			auto& bucket = table_[static_cast<size_t>(bucketIdx)];
 
 			for (size_t i = 0; i < bucket.size(); ++i)
 			{
@@ -187,7 +199,7 @@ namespace ktl
 
 				if (h == elementHash && Comparer()(elementValue, key))
 				{
-					return iterator{ this, bucketIdx, i };
+					return iterator{ this, static_cast<size_t>(bucketIdx), i };
 				}
 			}
 
@@ -253,9 +265,16 @@ namespace ktl
 					// Move to a different bucket, if necessary.
 					auto h = hash<T>{}(*it);
 					auto correctBucketIndex = (h % buckets);
+
+					if constexpr (sizeof(hash_t) != sizeof(size_t))
+					{
+						if (correctBucketIndex > numeric_limits<size_t>::max())
+							return false;
+					}
+
 					if (correctBucketIndex != i)
 					{
-						auto& correctBucket = table_[correctBucketIndex];
+						auto& correctBucket = table_[static_cast<size_t>(correctBucketIndex)];
 						if (!correctBucket.emplace_back(move(*it)))
 						{
 							KTL_LOG_ERROR("Failed to move element to correct bucket on rehash\n");
@@ -282,7 +301,13 @@ namespace ktl
 			auto h = hash<key_type>{}(key);
 			auto bucketIdx = h % bucket_count();
 
-			auto& bucket = table_[bucketIdx];
+			if constexpr (sizeof(hash_t) != sizeof(size_t))
+			{
+				if (bucketIdx > numeric_limits<size_t>::max())
+					return iterator{};
+			}
+
+			auto& bucket = table_[static_cast<size_t>(bucketIdx)];
 
 			auto b = bucket.begin();
 			auto e = bucket.end();
@@ -294,7 +319,7 @@ namespace ktl
 
 				bucket.erase(it);
 				--size_;
-				return ++(iterator{ this, bucketIdx, elementIdx  });
+				return ++(iterator{ this, static_cast<size_t>(bucketIdx), elementIdx  });
 			}
 
 			return iterator{};
