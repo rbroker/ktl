@@ -255,10 +255,23 @@ namespace ktl
 		{
 			pool_unicode_string concatenated;
 
+			if (!concatenated.byte_reserve(byte_size() + str.byte_size()))
+			{
+				KTL_LOG_ERROR("Unable to reserve space for %llu byte string\n", size() + str.size());
+				return concatenated;
+			}
+
 			concatenated.append(*this);
 			concatenated.append(str);
 
 			return concatenated;
+		}
+
+		pool_unicode_string operator+(const wchar_t* str)
+		{
+			unicode_string_view view{ str };
+
+			return *this + view;
 		}
 
 		[[nodiscard]] bool byte_reserve(size_t newSize)
