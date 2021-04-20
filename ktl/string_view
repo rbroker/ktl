@@ -14,7 +14,7 @@ namespace ktl
 
 	struct unicode_string_view
 	{
-		static const size_t npos = MAXSIZE_T;
+		static constexpr size_t npos = MAXSIZE_T;
 
 		constexpr unicode_string_view():
 			str_ {}
@@ -32,19 +32,15 @@ namespace ktl
 		constexpr unicode_string_view(const wchar_t* str, size_t length = npos)
 		{
 			str_.Buffer = const_cast<PWCH>(str);
-			str_.MaximumLength = 0;
-			str_.Length = 0;
 
-			for (size_t i = 0; str[i] != UNICODE_NULL; ++i)
-			{
-				++(str_.MaximumLength);
+			str_.Length = static_cast<USHORT>(__builtin_wcslen(str));
+			str_.MaximumLength = str_.Length;
 
-				if (i < length)
-					++(str_.Length);
-			}
+			if (str_.Length > length)
+				str_.Length = static_cast<USHORT>(length);
 
-			str_.Length *= sizeof(wchar_t);
-			str_.MaximumLength *= sizeof(wchar_t);
+			str_.Length *= static_cast<USHORT>(sizeof(wchar_t));
+			str_.MaximumLength *= static_cast<USHORT>(sizeof(wchar_t));
 		}
 
 		constexpr unicode_string_view(const unicode_string_view& other) :
@@ -59,7 +55,7 @@ namespace ktl
 		}
 
 		template<pool_type T>
-		unicode_string_view& operator=(const pool_unicode_string<T>& other)
+		[[nodiscard]] unicode_string_view& operator=(const pool_unicode_string<T>& other)
 		{
 			str_ = other.str_;
 		}
@@ -67,7 +63,7 @@ namespace ktl
 		/// <summary>
 		/// Size of view, in characters
 		/// </summary>
-		inline constexpr size_t size() const
+		[[nodiscard]] inline constexpr size_t size() const
 		{
 			return str_.Length / sizeof(wchar_t);
 		}
@@ -75,37 +71,37 @@ namespace ktl
 		/// <summary>
 		/// Size of view in bytes, excluding null terminator
 		/// </summary>
-		inline constexpr size_t byte_size() const
+		[[nodiscard]] inline constexpr size_t byte_size() const
 		{
 			return str_.Length;
 		}
 
-		inline constexpr size_t max_size() const
+		[[nodiscard]] inline constexpr size_t max_size() const
 		{
 			return NTSTRSAFE_UNICODE_STRING_MAX_CCH - 1;
 		}
 
-		inline constexpr PCUNICODE_STRING data() const
+		[[nodiscard]] inline constexpr PCUNICODE_STRING data() const
 		{
 			return &str_;
 		}
 
-		inline PUNICODE_STRING data()
+		[[nodiscard]] inline PUNICODE_STRING data()
 		{
 			return &str_;
 		}
 
-		inline constexpr PCUNICODE_STRING operator&() const
+		[[nodiscard]] inline constexpr PCUNICODE_STRING operator&() const
 		{
 			return data();
 		}
 
-		inline PUNICODE_STRING operator&()
+		[[nodiscard]] inline PUNICODE_STRING operator&()
 		{
 			return data();
 		}
 
-		constexpr unicode_string_view substr(size_t pos = 0, size_t count = npos) const
+		[[nodiscard]] constexpr unicode_string_view substr(size_t pos = 0, size_t count = npos) const
 		{
 			if (pos > size())
 				return {};
@@ -117,7 +113,7 @@ namespace ktl
 			return sub;
 		}
 
-		bool starts_with(unicode_string_view prefix) const
+		[[nodiscard]] bool starts_with(unicode_string_view prefix) const
 		{
 			if (size() < prefix.size())
 				return false;
@@ -126,7 +122,7 @@ namespace ktl
 			return sub == prefix;
 		}
 
-		bool ends_with(unicode_string_view suffix) const
+		[[nodiscard]] bool ends_with(unicode_string_view suffix) const
 		{
 			if (size() < suffix.size())
 				return false;
@@ -135,28 +131,28 @@ namespace ktl
 			return sub == suffix;
 		}
 
-		bool operator==(const unicode_string_view& other) const
+		[[nodiscard]] bool operator==(const unicode_string_view& other) const
 		{
 			return compare(other) == 0;
 		}
 
-		bool operator!=(const unicode_string_view& other) const
+		[[nodiscard]] bool operator!=(const unicode_string_view& other) const
 		{
 			return compare(other) != 0;
 		}
 
-		int compare(const unicode_string_view& other, bool caseInsensitive = false) const
+		[[nodiscard]] int compare(const unicode_string_view& other, bool caseInsensitive = false) const
 		{
 			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
 		}
 
 		template<pool_type OTHER_POOL_TYPE>
-		int compare(const pool_unicode_string<OTHER_POOL_TYPE>& other, bool caseInsensitive = false) const
+		[[nodiscard]] int compare(const pool_unicode_string<OTHER_POOL_TYPE>& other, bool caseInsensitive = false) const
 		{
 			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
 		}
 
-		wchar_t operator[](size_t index)
+		[[nodiscard]] wchar_t operator[](size_t index)
 		{
 			return str_.Buffer[index];
 		}
