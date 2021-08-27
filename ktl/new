@@ -12,6 +12,14 @@ namespace ktl
 	void pool_free(void* p);
 }
 
+// This needs to be in the std namespace, because the compiler will generate calls to aligned
+// operator delete with "std::align_val_t" in the signature:
+// error LNK2019: unresolved external symbol "void __cdecl operator delete(void *,unsigned __int64,enum std::align_val_t)"
+namespace std
+{
+	enum class align_val_t : size_t {};
+}
+
 // Global pool new (*very* non-standard...)
 void* operator new(size_t n, ktl::pool_type pool);
 
@@ -24,5 +32,9 @@ void* operator new(size_t n, void* p);
 // Global deletes
 void __cdecl operator delete(void* p);
 void __cdecl operator delete(void* p, size_t n);
+void __cdecl operator delete(void* p, std::align_val_t n);
+void __cdecl operator delete(void* p, size_t n, std::align_val_t a);
 void __cdecl operator delete[](void* p);
 void __cdecl operator delete[](void* p, size_t n);
+void __cdecl operator delete[](void* p, std::align_val_t n);
+void __cdecl operator delete[](void* p, size_t n, std::align_val_t a);

@@ -272,6 +272,21 @@ void __cdecl operator delete(void* p, size_t n)
 	ktl::pool_free(p);
 }
 
+void __cdecl operator delete(void* p, std::align_val_t a)
+{
+	UNREFERENCED_PARAMETER(a);
+
+	ktl::pool_free(p);
+}
+
+void __cdecl operator delete(void* p, size_t n, std::align_val_t a)
+{
+	UNREFERENCED_PARAMETER(n);
+	UNREFERENCED_PARAMETER(a);
+
+	ktl::pool_free(p);
+}
+
 void __cdecl operator delete[](void* p)
 {
 	ktl::pool_free(p);
@@ -280,6 +295,21 @@ void __cdecl operator delete[](void* p)
 void __cdecl operator delete[](void* p, size_t n)
 {
 	UNREFERENCED_PARAMETER(n);
+
+	ktl::pool_free(p);
+}
+
+void __cdecl operator delete[](void* p, std::align_val_t a)
+{
+	UNREFERENCED_PARAMETER(a);
+
+	ktl::pool_free(p);
+}
+
+void __cdecl operator delete[](void* p, size_t n, std::align_val_t a)
+{
+	UNREFERENCED_PARAMETER(n);
+	UNREFERENCED_PARAMETER(a);
 
 	ktl::pool_free(p);
 }

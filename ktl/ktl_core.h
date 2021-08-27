@@ -3,11 +3,11 @@
 // NTDDK must be included before WDM, else you get odd build failures.
 extern "C"
 {
+#pragma warning(push)
+#pragma warning(disable: 4471)
 #include <ntddk.h>
 
 #define NOMINMAX
-#pragma warning(push)
-#pragma warning(disable: 4471)
 #include <wdf.h>
 #pragma warning(pop)
 }

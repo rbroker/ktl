@@ -628,6 +628,13 @@ bool test_list()
 		ASSERT_TRUE(copyable_complex_list.size() == 6, "unexpected list of complex objects");
 		copyable_complex_list.clear();
 		ASSERT_TRUE(copyable_complex_list.empty(), "list was not empty after clearing");
+
+		ktl::list<int, ktl::nonpaged_pool_allocator> nonpaged_list;
+		ASSERT_TRUE(nonpaged_list.push_back(0), "list push with custom allocator failed");
+
+		ktl::paged_lookaside_allocator paged_lookaside_allocator{ sizeof(ktl::list_element<int>) };
+		ktl::list<int, ktl::paged_lookaside_allocator> paged_lookaside_list{ paged_lookaside_allocator };
+		ASSERT_TRUE(paged_lookaside_list.emplace_back(1), "list emplace with custom allocator failed");
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
