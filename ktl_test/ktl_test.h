@@ -22,6 +22,29 @@ typedef struct _KTL_TEST_IOCTL_CONTEXT
 {
     WDFMEMORY UsermodeIn;
     WDFMEMORY UsermodeOut;
-} KTL_TEST_IOCTL_CONTEXT, *PKTL_TEST_IOCTL_CONTEXT;
+} KTL_TEST_IOCTL_CONTEXT, * PKTL_TEST_IOCTL_CONTEXT;
 
-WDF_DECLARE_CONTEXT_TYPE_WITH_NAME(KTL_TEST_IOCTL_CONTEXT, GetKtlTestIoctlContext);
+#define CONST_SAFE_DECLARE_TYPE_AND_GLOBALS(_contexttype, _UniqueType, _GetUniqueType, _section)\
+                                                                        \
+typedef _contexttype* WDF_TYPE_NAME_POINTER_TYPE(_contexttype);         \
+                                                                        \
+WDF_EXTERN_C __declspec(allocate( _section )) __declspec(selectany) extern const WDF_OBJECT_CONTEXT_TYPE_INFO WDF_TYPE_NAME_TO_TYPE_INFO(_contexttype) =  \
+{                                                                       \
+    sizeof(WDF_OBJECT_CONTEXT_TYPE_INFO),                               \
+    const_cast<PCHAR>(#_contexttype),                                   \
+    sizeof(_contexttype),                                               \
+    _UniqueType,                                                        \
+    _GetUniqueType,                                                     \
+};                                                                      \
+
+#define CONST_SAFE_DECLARE_CONTEXT_TYPE_WITH_NAME(_contexttype, _castingfunction) \
+                                                                        \
+CONST_SAFE_DECLARE_TYPE_AND_GLOBALS(                                           \
+    _contexttype,                                                       \
+    WDF_GET_CONTEXT_TYPE_INFO(_contexttype),                            \
+    NULL,                                                               \
+    WDF_TYPE_DEFAULT_SECTION_NAME)                                      \
+                                                                        \
+WDF_DECLARE_CASTING_FUNCTION(_contexttype, _castingfunction)
+
+CONST_SAFE_DECLARE_CONTEXT_TYPE_WITH_NAME(KTL_TEST_IOCTL_CONTEXT, GetKtlTestIoctlContext);
