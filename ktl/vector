@@ -98,7 +98,7 @@ namespace ktl
 			return !(*this == other);
 		}
 
-		template<typename T, pool_type POOL>
+		template<class T, class allocator_type>
 		friend struct vector;
 
 	private:
@@ -107,12 +107,18 @@ namespace ktl
 		size_t index_ = 0;
 	};
 
-	template<class T, pool_type POOL = pool_type::NonPaged>
+	template<class T, class allocator_type = paged_pool_allocator>
 	struct vector
 	{
 		using iterator = vector_iterator<T>;
 
-		vector()
+		vector() :
+			a_()
+		{
+		}
+
+		vector(const allocator_type& a) :
+			a_(a)
 		{
 		}
 
@@ -130,7 +136,11 @@ namespace ktl
 
 		~vector()
 		{
+			// Deconstruct everything in the vector.
 			clear();
+
+			// Free the backing memory.
+			a_.deallocate(buffer_);
 		}
 
 		vector& operator=(vector&& other)
@@ -164,24 +174,35 @@ namespace ktl
 			if (capacity() >= newSize)
 				return true;
 
-			unique_ptr<T[]> tmp = make_unique<T[]>(POOL, newSize);
+			// Obtain freshly-sized backing memory
+			T* tmp = reinterpret_cast<T*>(a_.allocate(sizeof(T) * newSize));
 			if (!tmp)
 				return false;
 
-			if constexpr (is_trivially_copyable_v<T>)
+			// Save a copy of any of the vector contents.
+			if (!empty())
 			{
-				RtlCopyMemory(tmp.get(), buffer_.get(), size() * sizeof(T));
-			}
-			else
-			{
-				for (size_t i = 0; i < size(); ++i)
+				if constexpr (is_trivially_copyable_v<T>)
 				{
-					tmp[i] = move(buffer_[i]);
+					RtlCopyMemory(tmp, buffer_, size() * sizeof(T));
+				}
+				else
+				{
+					for (size_t i = 0; i < size(); ++i)
+					{
+						tmp[i] = move(buffer_[i]);
+					}
 				}
 			}
 
+			// Free existing backing memory.
+			if (buffer_)
+			{
+				a_.deallocate(buffer_);
+			}
+
 			capacity_ = newSize;
-			buffer_ = move(tmp);
+			buffer_ = tmp;
 
 			return true;
 		}
@@ -322,7 +343,7 @@ namespace ktl
 
 		[[nodiscard]] T* data()
 		{
-			return buffer_.get();
+			return buffer_;
 		}
 
 		[[nodiscard]] void clear()
@@ -350,6 +371,7 @@ namespace ktl
 	private:
 		size_t size_ = 0;
 		size_t capacity_ = 0;
-		unique_ptr<T[]> buffer_;
+		T* buffer_ = nullptr;
+		allocator_type a_;
 	};
 }
