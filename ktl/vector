@@ -113,12 +113,12 @@ namespace ktl
 		using iterator = vector_iterator<T>;
 
 		vector() :
-			a_()
+			a_{}
 		{
 		}
 
-		vector(const allocator_type& a) :
-			a_(a)
+		explicit vector(const allocator_type& a) :
+			a_{ a }
 		{
 		}
 
@@ -374,4 +374,10 @@ namespace ktl
 		T* buffer_ = nullptr;
 		allocator_type a_;
 	};
+
+	template<typename T>
+	using paged_vector = vector<T, paged_pool_allocator>;
+
+	template<typename T>
+	using nonpaged_vector = vector<T, nonpaged_pool_allocator>;
 }

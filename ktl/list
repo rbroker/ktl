@@ -365,4 +365,17 @@ namespace ktl
 		PLIST_ENTRY head_;
 		PLIST_ENTRY curr_;
 	};
+
+	// Define list variants with different allocators.
+	template<typename T>
+	using paged_list = list<T, paged_pool_allocator>;
+
+	template<typename T>
+	using nonpaged_list = list<T, nonpaged_pool_allocator>;
+
+	template<typename T>
+	using paged_lookaisde_list = list<T, paged_lookaside_allocator<T>>;
+
+	template<typename T>
+	using nonpaged_lookaside_list = list<T, nonpaged_lookaside_allocator<T>>;
 }

@@ -23,8 +23,8 @@ namespace ktl
 		return construct_at<T>(p, forward<Args>(args)...);
 	}
 
-	template<class T, class allocatoe_type>
-	constexpr void destroy(allocatoe_type& a, T* p)
+	template<class T, class allocator_type, enable_if_t<!is_array_v<T>, int> = 0>
+	constexpr void destroy(allocator_type& a, T* p)
 	{
 		// Destroy the object.
 		p->~T();
@@ -37,7 +37,7 @@ namespace ktl
 	{
 		virtual ~allocator() {};
 
-		virtual [[nodiscard]] void* allocate(size_t n) = 0;
+		virtual void* allocate(size_t n) = 0;
 		virtual void deallocate(void* p) = 0;
 	};
 
@@ -67,11 +67,11 @@ namespace ktl
 		}
 	};
 
+	template<typename T>
 	struct paged_lookaside_allocator : public allocator
 	{
-		paged_lookaside_allocator(size_t blockSize) :
+		paged_lookaside_allocator() :
 			owner_(true),
-			blockSize_(blockSize),
 			lookaside_ptr_(&lookaside_)
 		{
 			ExInitializePagedLookasideList(
@@ -79,7 +79,7 @@ namespace ktl
 				nullptr,
 				nullptr,
 				0,
-				blockSize,
+				sizeof(T),
 				KTL_POOL_TAG,
 				0);
 		}
@@ -89,7 +89,6 @@ namespace ktl
 		/// </summary>
 		paged_lookaside_allocator(const paged_lookaside_allocator& other) :
 			owner_(false),
-			blockSize_(other.blockSize_),
 			lookaside_ptr_(other.lookaside_ptr_)
 		{
 		}
@@ -104,9 +103,9 @@ namespace ktl
 
 		[[nodiscard]] void* allocate(size_t n) override
 		{
-			if (n > blockSize_)
+			if (n > sizeof(T))
 			{
-				KTL_LOG_ERROR("Invalid paged_lookaside allocation: %llu > %llu", n, blockSize_);
+				KTL_LOG_ERROR("Invalid paged_lookaside allocation: %llu > %llu", n, sizeof(T));
 				return nullptr;
 			}
 
@@ -121,15 +120,14 @@ namespace ktl
 	private:
 		PAGED_LOOKASIDE_LIST lookaside_;
 		PPAGED_LOOKASIDE_LIST lookaside_ptr_ = nullptr;
-		size_t blockSize_;
 		bool owner_ = false;
 	};
 
+	template<typename T>
 	struct nonpaged_lookaside_allocator : public allocator
 	{
-		nonpaged_lookaside_allocator(size_t blockSize) :
+		nonpaged_lookaside_allocator() :
 			owner_(true),
-			blockSize_(blockSize),
 			lookaside_ptr_(&lookaside_)
 		{
 			ExInitializeNPagedLookasideList(
@@ -137,7 +135,7 @@ namespace ktl
 				nullptr,
 				nullptr,
 				0,
-				blockSize,
+				sizeof(T),
 				KTL_POOL_TAG,
 				0);
 		}
@@ -147,7 +145,6 @@ namespace ktl
 		/// </summary>
 		nonpaged_lookaside_allocator(const nonpaged_lookaside_allocator& other) :
 			owner_(false),
-			blockSize_(other.blockSize_),
 			lookaside_ptr_(other.lookaside_ptr_)
 		{
 		}
@@ -162,9 +159,9 @@ namespace ktl
 
 		[[nodiscard]] void* allocate(size_t n) override
 		{
-			if (n > blockSize_)
+			if (n > sizeof(T))
 			{
-				KTL_LOG_ERROR("Invalid nonpaged_lookaside allocation: %llu > %llu", n, blockSize_);
+				KTL_LOG_ERROR("Invalid nonpaged_lookaside allocation: %llu > %llu", n, sizeof(T));
 				return nullptr;
 			}
 
@@ -179,7 +176,6 @@ namespace ktl
 	private:
 		NPAGED_LOOKASIDE_LIST lookaside_;
 		PNPAGED_LOOKASIDE_LIST lookaside_ptr_ = nullptr;
-		size_t blockSize_;
 		bool owner_ = false;
 	};
 

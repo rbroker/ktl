@@ -8,17 +8,17 @@
 
 namespace ktl
 {
-	template<class T, class Comparer, pool_type>
-	struct pool_set;
+	template<class T, class Comparer, class allocator_type>
+	struct set;
 
-	template<class T, class Comparer, pool_type POOL>
+	template<class T, class Comparer, class allocator_type>
 	struct set_iterator
 	{
 		using value_type = T;
 		using reference = value_type&;
 		using pointer = value_type*;
 
-		set_iterator(observer_ptr<pool_set<T, Comparer, POOL>> set) :
+		set_iterator(observer_ptr<set<T, Comparer, allocator_type>> set) :
 			set_(set),
 			bucket_(0),
 			element_(0)
@@ -27,7 +27,7 @@ namespace ktl
 				next_bucket();
 		}
 
-		set_iterator(observer_ptr<pool_set<T, Comparer, POOL>> set, size_t bucket, size_t element) :
+		set_iterator(observer_ptr<set<T, Comparer, allocator_type>> set, size_t bucket, size_t element) :
 			set_(set),
 			bucket_(bucket),
 			element_(element)
@@ -107,19 +107,26 @@ namespace ktl
 		}
 
 	private:
-		observer_ptr<pool_set<T, Comparer, POOL>> set_;
+		observer_ptr<set<T, Comparer, allocator_type>> set_;
 		size_t bucket_;
 		size_t element_;
 	};
 
-	template<class T, class Comparer = equal_to<T>, pool_type POOL = pool_type::NonPaged>
-	struct pool_set
+	template<class T, class Comparer = equal_to<T>, class allocator_type = paged_pool_allocator>
+	struct set
 	{
-		using iterator = set_iterator<T, Comparer, POOL>;
+		using iterator = set_iterator<T, Comparer, allocator_type>;
 
 		friend struct iterator;
 
-		pool_set(size_t capacity = 4)
+		set(size_t capacity = 4)
+		{
+			if (!reserve(capacity))
+				KTL_LOG_ERROR("Failed to reserve initial set storage!\n");
+		}
+
+		explicit set(const allocator_type& a, size_t capacity = 4) :
+			a_()
 		{
 			if (!reserve(capacity))
 				KTL_LOG_ERROR("Failed to reserve initial set storage!\n");
@@ -206,7 +213,7 @@ namespace ktl
 			return iterator{};
 		}
 
-		template<typename = enable_if_t<is_same_v<T, pool_unicode_string>>>
+		template<typename = enable_if_t<is_same_v<T, unicode_string>>>
 		[[nodiscard]] iterator find(unicode_string_view key)
 		{
 			if (empty())
@@ -363,9 +370,7 @@ namespace ktl
 
 	private:
 		size_t size_ = 0;
-		vector<vector<T, POOL>, POOL> table_;
+		allocator_type a_;
+		vector<vector<T, allocator_type>, allocator_type> table_{ a_ };
 	};
-
-	template<typename T>
-	using set = pool_set<T, equal_to<T>, pool_type::Paged>;
 }

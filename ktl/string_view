@@ -9,8 +9,8 @@
 
 namespace ktl
 {
-	template<pool_type POOL>
-	struct pool_unicode_string;
+	template<typename allocator_type>
+	struct unicode_string;
 
 	struct unicode_string_view
 	{
@@ -48,14 +48,14 @@ namespace ktl
 		{
 		}
 
-		template<pool_type T>
-		unicode_string_view(const pool_unicode_string<T>& other) :
+		template<typename string_type>
+		unicode_string_view(const string_type& other) :
 			str_(other.str_)
 		{
 		}
 
-		template<pool_type T>
-		[[nodiscard]] unicode_string_view& operator=(const pool_unicode_string<T>& other)
+		template<typename string_type>
+		[[nodiscard]] unicode_string_view& operator=(const string_type& other)
 		{
 			str_ = other.str_;
 		}
@@ -146,8 +146,8 @@ namespace ktl
 			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
 		}
 
-		template<pool_type OTHER_POOL_TYPE>
-		[[nodiscard]] int compare(const pool_unicode_string<OTHER_POOL_TYPE>& other, bool caseInsensitive = false) const
+		template<typename allocator_type>
+		[[nodiscard]] int compare(const unicode_string<allocator_type>& other, bool caseInsensitive = false) const
 		{
 			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
 		}

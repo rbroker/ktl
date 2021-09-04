@@ -29,7 +29,7 @@ struct complex_copyable_object
 	{
 	}
 
-	ktl::unicode_string Name;
+	ktl::unicode_string<> Name;
 	int Value = 5;
 	ktl::vector<int> Vec;
 
@@ -54,7 +54,7 @@ struct complex_object
 	{
 	}
 
-	ktl::unicode_string Name;
+	ktl::unicode_string<> Name;
 	int Value = 5;
 	ktl::vector<int> Vec;
 
@@ -66,7 +66,7 @@ bool test_set()
 {
 	__try
 	{
-		ktl::set<ktl::unicode_string> set;
+		ktl::set<ktl::unicode_string<>> set;
 
 		// insert & grow
 		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"foo" }), "failed to insert string into set");
@@ -206,7 +206,7 @@ bool test_vector()
 		ASSERT_TRUE(vec.size() == newSize - 1, "unexpected size after vector pop_back: %llu", vec.size());
 
 		// non-trivial types
-		ktl::vector<ktl::unicode_string> strVec;
+		ktl::vector<ktl::unicode_string<>> strVec;
 		ktl::unicode_string str{ L"string" };
 		ASSERT_TRUE(strVec.push_back(str), "failed to push string");
 		ASSERT_TRUE(strVec.emplace_back(L"other"), "failed to emplace string");
@@ -299,8 +299,8 @@ bool test_vector()
 		ASSERT_TRUE(vec.empty(), "vector not empty after erasing all elements");
 
 		// erase complex
-		ktl::vector<ktl::unicode_string> vecStr;
-		static_assert(!ktl::is_trivially_copyable_v<ktl::unicode_string>);
+		ktl::vector<ktl::unicode_string<>> vecStr;
+		static_assert(!ktl::is_trivially_copyable_v<ktl::unicode_string<>>);
 
 		ASSERT_TRUE(vecStr.emplace_back(L"one"), "failed to emplace test string");
 		ASSERT_TRUE(vecStr.emplace_back(L"two"), "failed to emplace test string");
@@ -632,9 +632,9 @@ bool test_list()
 		ktl::list<int, ktl::nonpaged_pool_allocator> nonpaged_list;
 		ASSERT_TRUE(nonpaged_list.push_back(0), "list push with custom allocator failed");
 
-		ktl::paged_lookaside_allocator paged_lookaside_allocator{ sizeof(ktl::list_element<int>) };
-		ktl::list<int, ktl::paged_lookaside_allocator> paged_lookaside_list{ paged_lookaside_allocator };
+		ktl::paged_lookaisde_list<int> paged_lookaside_list{ };
 		ASSERT_TRUE(paged_lookaside_list.emplace_back(1), "list emplace with custom allocator failed");
+		ASSERT_TRUE(paged_lookaside_list.emplace_back(2), "list emplace with custom allocator failed");
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{

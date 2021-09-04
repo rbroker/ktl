@@ -10,15 +10,22 @@
 
 namespace ktl
 {
-	template<pool_type POOL = pool_type::NonPaged>
-	struct pool_unicode_string
+	template<typename allocator_type = paged_pool_allocator>
+	struct unicode_string
 	{
 		friend struct unicode_string_view;
 
 		static const size_t npos = MAXSIZE_T;
 
-		pool_unicode_string() :
-			str_{}
+		unicode_string() :
+			str_{},
+			a_{}
+		{
+		}
+
+		explicit unicode_string(const allocator_type& a) :
+			str_{},
+			a_(a)
 		{
 		}
 
@@ -26,8 +33,9 @@ namespace ktl
 		// If we can get guaranteed copy elision for NRVO, then probably
 		// best to delete the copy constructor / assign, and see if we can move
 		// to having an explicit "copy" method instead.
-		pool_unicode_string(const pool_unicode_string& other) :
-			str_{}
+		unicode_string(const unicode_string& other) :
+			str_{},
+			a_{ other.a_ }
 		{
 			if (!resize(other.size()))
 			{
@@ -43,8 +51,9 @@ namespace ktl
 			}
 		}
 
-		explicit pool_unicode_string(const PUNICODE_STRING other) :
-			str_{}
+		unicode_string(const PUNICODE_STRING other) :
+			str_{},
+			a_ {}
 		{
 			if (!byte_resize(other->Length))
 			{
@@ -59,32 +68,53 @@ namespace ktl
 			}
 		}
 
-		pool_unicode_string(unicode_string_view other) :
-			pool_unicode_string(other.data())
+		unicode_string(unicode_string_view other) :
+			unicode_string(other.data())
 		{
 		}
 
-		explicit pool_unicode_string(const wchar_t* str, size_t length = npos) :
-			pool_unicode_string(unicode_string_view{ str, length })
+		explicit unicode_string(const wchar_t* str, size_t length = npos) :
+			unicode_string(unicode_string_view{ str, length })
 		{
 		}
 
-		pool_unicode_string(pool_unicode_string&& other) :
+		unicode_string(unicode_string&& other) :
 			buffer_(move(other.buffer_)),
 			str_(other.str_)
 		{
 			other.str_ = {};
+			other.buffer_ = nullptr;
 		}
 
-		~pool_unicode_string()
+		~unicode_string()
 		{
+			if (!buffer_)
+				return;
+
+			a_.deallocate(buffer_);
 		}
 
-		pool_unicode_string& operator=(pool_unicode_string&& other)
+		unicode_string& operator=(unicode_string&& other)
 		{
-			buffer_ = move(other.buffer_);
+			buffer_ = other.buffer_;
+			other.buffer_ = nullptr;
+
 			str_ = other.str_;
 			other.str_ = {};
+			return *this;
+		}
+
+		unicode_string& operator=(unicode_string_view other)
+		{
+			unicode_string tmp{ other };
+			*this = move(tmp);
+			return *this;
+		}
+
+		unicode_string& operator=(const wchar_t* str)
+		{
+			unicode_string_view tmp{ str };
+			*this = move(tmp);
 			return *this;
 		}
 
@@ -160,7 +190,7 @@ namespace ktl
 			{
 				size_t newByteCapacity = (newSize) * sizeof(wchar_t);
 
-				ktl::unique_ptr<wchar_t[]> tmp{ new (POOL) wchar_t[newSize] };
+				auto tmp = reinterpret_cast<wchar_t*>(a_.allocate(sizeof(wchar_t) * newSize));
 				if (!tmp)
 				{
 					KTL_LOG_ERROR("Failed to allocate memory for unique_ptr\n");
@@ -169,15 +199,21 @@ namespace ktl
 
 				if (str_.Length > 0)
 				{
-					if (NT_ERROR(RtlStringCchCopyW(tmp.get(), newSize, str_.Buffer)))
+					if (NT_ERROR(RtlStringCchCopyW(tmp, newSize, str_.Buffer)))
 					{
 						KTL_LOG_ERROR("Copying string into temporary buffer failed\n");
+						a_.deallocate(tmp);
 						return false;
 					}
 				}
 
-				buffer_.reset(tmp.release());
-				str_.Buffer = static_cast<PWCH>(buffer_.get());
+				if (buffer_)
+				{
+					a_.deallocate(buffer_);
+				}
+
+				buffer_ = tmp;
+				str_.Buffer = static_cast<PWCH>(buffer_);
 
 				// Is there no multi-byte fill for kernel mode?
 				for (size_t i = size(); i < newSize; ++i)
@@ -196,7 +232,7 @@ namespace ktl
 		/// <param name="pos">The character index to begin_ the substring</param>
 		/// <param name="count">Length of the substring to return, in characters of npos for the whole remaining input</param>
 		/// <returns>The substring, or an empty string on error</returns>
-		pool_unicode_string substr(size_t pos = 0, size_t count = npos)
+		unicode_string substr(size_t pos = 0, size_t count = npos)
 		{
 			if (pos > size())
 			{
@@ -207,14 +243,14 @@ namespace ktl
 			if (count == npos || ((pos + count) > size()))
 				count = size() - pos;
 
-			pool_unicode_string sub;
+			unicode_string sub;
 			if (!sub.resize(count))
 			{
 				KTL_LOG_ERROR("Failed to resize substring to %llu\n", count);
 				return {};
 			}
 
-			if (RtlUnicodeStringCchCopyStringN(&sub, buffer_.get() + pos, count) != STATUS_SUCCESS)
+			if (RtlUnicodeStringCchCopyStringN(&sub, buffer_ + pos, count) != STATUS_SUCCESS)
 			{
 				KTL_LOG_ERROR("Failed to copy source characters to substring\n");
 				return {};
@@ -224,7 +260,7 @@ namespace ktl
 		}
 
 		template<typename string_type>
-		pool_unicode_string& append(const string_type& str)
+		unicode_string& append(const string_type& str)
 		{
 			if (!byte_reserve(byte_size() + str.byte_size()))
 			{
@@ -238,22 +274,22 @@ namespace ktl
 			return *this;
 		}
 
-		pool_unicode_string& append(const wchar_t* str)
+		unicode_string& append(const wchar_t* str)
 		{
 			unicode_string_view view{ str };
 			return append(view);
 		}
 
 		template<typename string_type>
-		pool_unicode_string& operator+=(const string_type& str)
+		unicode_string& operator+=(const string_type& str)
 		{
 			return append(str);
 		}
 
 		template<typename string_type>
-		pool_unicode_string operator+(const string_type& str)
+		unicode_string operator+(const string_type& str)
 		{
-			pool_unicode_string concatenated;
+			unicode_string concatenated;
 
 			if (!concatenated.byte_reserve(byte_size() + str.byte_size()))
 			{
@@ -267,7 +303,7 @@ namespace ktl
 			return concatenated;
 		}
 
-		pool_unicode_string operator+(const wchar_t* str)
+		unicode_string operator+(const wchar_t* str)
 		{
 			unicode_string_view view{ str };
 
@@ -290,7 +326,7 @@ namespace ktl
 			{
 				size_t newByteCapacity = (newSize) * sizeof(wchar_t);
 
-				ktl::unique_ptr<wchar_t[]> tmp{ new (POOL) wchar_t[newSize] };
+				auto tmp = reinterpret_cast<wchar_t*>(a_.allocate(sizeof(wchar_t) * newSize));
 				if (!tmp)
 				{
 					KTL_LOG_ERROR("Failed to allocate memory for unique_ptr\n");
@@ -299,15 +335,21 @@ namespace ktl
 
 				if (str_.Length > 0)
 				{
-					if (NT_ERROR(RtlStringCbCopyW(tmp.get(), newSize, str_.Buffer)))
+					if (NT_ERROR(RtlStringCbCopyW(tmp, newSize, str_.Buffer)))
 					{
 						KTL_LOG_ERROR("Copying string into temporary buffer failed\n");
+						a_.deallocate(tmp);
 						return false;
 					}
 				}
 
-				buffer_.reset(tmp.release());
-				str_.Buffer = static_cast<PWCH>(buffer_.get());
+				if (buffer_)
+				{
+					a_.deallocate(buffer_);
+				}
+
+				buffer_ = tmp;
+				str_.Buffer = static_cast<PWCH>(buffer_);
 				str_.MaximumLength = static_cast<USHORT>(newByteCapacity);
 			}
 
@@ -345,7 +387,7 @@ namespace ktl
 			return data();
 		}
 
-		bool operator==(const pool_unicode_string& other) const
+		bool operator==(const unicode_string& other) const
 		{
 			return compare(other) == 0;
 		}
@@ -355,7 +397,7 @@ namespace ktl
 			return compare(other) == 0;
 		}
 
-		bool operator!=(const pool_unicode_string& other) const
+		bool operator!=(const unicode_string& other) const
 		{
 			return compare(other) != 0;
 		}
@@ -370,24 +412,29 @@ namespace ktl
 			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
 		}
 
-		int compare(const pool_unicode_string& other, bool caseInsensitive = false) const
+		int compare(const unicode_string& other, bool caseInsensitive = false) const
 		{
 			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
 		}
 
 	private:
-		unique_ptr<wchar_t[]> buffer_;
+		wchar_t* buffer_;
 		UNICODE_STRING str_;
+		allocator_type a_ = {};
 	};
 
-	using unicode_string = pool_unicode_string<pool_type::NonPaged>;
-
-	template<pool_type POOL>
-	struct hash<pool_unicode_string<POOL>>
+	template<typename allocator_type>
+	struct hash<unicode_string<allocator_type>>
 	{
-		[[nodiscard]] hash_t operator()(const pool_unicode_string<POOL>& value) const
+		[[nodiscard]] hash_t operator()(const unicode_string<allocator_type>& value) const
 		{
 			return wyhash(value.data()->Buffer, value.byte_size(), 0, _wyp);
 		}
 	};
+
+	template<typename allocator_type>
+	unicode_string(paged_pool_allocator) -> unicode_string<paged_pool_allocator>;
+
+	using paged_unicode_string = unicode_string<paged_pool_allocator>;
+	using nonpaged_unicode_string = unicode_string<nonpaged_pool_allocator>;
 }

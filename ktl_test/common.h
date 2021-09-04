@@ -2,9 +2,12 @@
 
 extern "C"
 {
+#pragma warning(push)
+#pragma warning(disable: 4471)
 #define NOMINMAX
 #include <ntddk.h>
 #include <wdf.h>
+#pragma warning(pop)
 }
 
 void SerializingDebugPrint(ULONG componentId, ULONG level, PCSTR format, ...);
