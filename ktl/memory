@@ -165,14 +165,16 @@ namespace ktl
 	{
 		paged_lookaside_allocator()
 		{
-			ExInitializePagedLookasideList(
+			ExInitializeLookasideListEx(
 				&lookaside_,
 				nullptr,
 				nullptr,
-				0,
+				POOL_TYPE::PagedPool,
+				EX_LOOKASIDE_LIST_EX_FLAGS_FAIL_NO_RAISE,
 				BLOCK_SIZE,
 				KTL_POOL_TAG,
-				0);
+				0
+			);
 		}
 
 		paged_lookaside_allocator(const paged_lookaside_allocator&) = delete;
@@ -186,7 +188,7 @@ namespace ktl
 #if KTL_TRACK_ALLOCATIONS
 			validate(__FUNCTION__);
 #endif
-			ExDeletePagedLookasideList(&lookaside_);
+			ExDeleteLookasideListEx(&lookaside_);
 		}
 
 		[[nodiscard]] void* allocate(size_t n) override
@@ -197,7 +199,7 @@ namespace ktl
 				return nullptr;
 			}
 
-			auto p = ExAllocateFromPagedLookasideList(&lookaside_);
+			auto p = ExAllocateFromLookasideListEx(&lookaside_);
 
 #if KTL_TRACK_ALLOCATIONS
 			if (p)
@@ -214,7 +216,7 @@ namespace ktl
 #if KTL_TRACK_ALLOCATIONS
 			InterlockedIncrement64(&deallocationCount_);
 #endif
-			ExFreeToPagedLookasideList(&lookaside_, p);
+			ExFreeToLookasideListEx(&lookaside_, p);
 		}
 
 		static paged_lookaside_allocator& instance()
@@ -224,7 +226,7 @@ namespace ktl
 		}
 
 	private:
-		PAGED_LOOKASIDE_LIST lookaside_;
+		LOOKASIDE_LIST_EX lookaside_;
 	};
 
 	template<size_t BLOCK_SIZE>
@@ -232,14 +234,16 @@ namespace ktl
 	{
 		nonpaged_lookaside_allocator()
 		{
-			ExInitializeNPagedLookasideList(
+			ExInitializeLookasideListEx(
 				&lookaside_,
 				nullptr,
 				nullptr,
-				0,
+				POOL_TYPE::NonpagedPoolNx,
+				EX_LOOKASIDE_LIST_EX_FLAGS_FAIL_NO_RAISE,
 				BLOCK_SIZE,
 				KTL_POOL_TAG,
-				0);
+				0
+			);
 		}
 
 		nonpaged_lookaside_allocator(const nonpaged_lookaside_allocator&) = delete;
@@ -253,7 +257,7 @@ namespace ktl
 #if KTL_TRACK_ALLOCATIONS
 			validate(__FUNCTION__);
 #endif
-			ExDeleteNPagedLookasideList(&lookaside_);
+			ExDeleteLookasideListEx(&lookaside_);
 		}
 
 		[[nodiscard]] void* allocate(size_t n) override
@@ -264,7 +268,7 @@ namespace ktl
 				return nullptr;
 			}
 
-			auto p = ExAllocateFromNPagedLookasideList(&lookaside_);
+			auto p = ExAllocateFromLookasideListEx(&lookaside_);
 #if KTL_TRACK_ALLOCATIONS
 			if (p)
 			{
@@ -279,7 +283,7 @@ namespace ktl
 #if KTL_TRACK_ALLOCATIONS
 			InterlockedIncrement64(&deallocationCount_);
 #endif
-			ExFreeToNPagedLookasideList(&lookaside_, p);
+			ExFreeToLookasideListEx(&lookaside_, p);
 		}
 
 		static nonpaged_lookaside_allocator& instance()
@@ -289,7 +293,7 @@ namespace ktl
 		}
 
 	private:
-		NPAGED_LOOKASIDE_LIST lookaside_;
+		LOOKASIDE_LIST_EX lookaside_;
 	};
 
 	// Scalar unique_ptr

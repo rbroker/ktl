@@ -49,7 +49,7 @@ DriverUnload(
 | kernel | `floating_point_state`, `auto_irp`, `safe_user_buffer`, `object_attributes` | `ktl::floating_point_state` is needed for using [x87 floating point](https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-kesaveextendedprocessorstate).
 | limits | `<T>min`, `<T>max` | For your typical fixed-width integer types in cstdint |
 | list | `list<T>` | Based on kernel [LIST_ENTRY](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-list_entry) |
-| memory | `addressof`, `unique_ptr<T>`, `observer_ptr<T>`, `make_unique<T>` | |
+| memory | `addressof`, `unique_ptr<T>`, `observer_ptr<T>`, `make_unique<T>`, `paged_pool_allocator`, `nonpaged_pool_allocator`, `paged_lookaside_allocator`, `nonpaged_lookaside_allocator` | |
 | mutex | `scoped_lock`, `mutex` | No deadlock-avoiding lock, based on [FAST_MUTEX](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/eprocess) |
 | new | `new`, `delete`, `new[]`, `delete[]`, placement `new` | You must use either placement new, or operator new overloaded with `ktl::pool_type`. All news are non-throwing. |
 | set | `set<T>` | *unordered* set implementation. |
@@ -120,4 +120,17 @@ void sizes()
     size_t size = str.size(); // returns "3"
     size_t bytes = str.byte_size(); // returns "6"
 }
+```
+
+- KTL uses its own (probably quite terrible) allocator solution. All the supported container types support the provided allocators.
+```C++
+ktl::unicode_string paged_str { L"foo", };
+ktl::unicode_string<ktl::nonpaged_pool_allocator> nonpaged_str { L"bar" }; 
+```
+- `ktl::list` supports allocations either from the ordinary pool allocations, or lookaside lists. Some helper templates are defined, to simplify specifying the correct block size for the lookaside allocations:
+```C++
+ktl::list<int> list1; // Create a new list, using ktl::paged_pool_allocator
+ktl::paged_lookaisde_list<int> list2; // Create a new list, using ktl::paged_lookaside_allocator
+ktl::list<int, ktl::nonpaged_pool_allocator> list3; // Create a new list, using ktl::nonpaged_pool_allocator
+ktl::nonpaged_lookaside_list<int> list4; // Create a new list, using ktl::nonpaged_lookaside_allocator
 ```
