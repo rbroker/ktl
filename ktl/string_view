@@ -162,7 +162,7 @@ namespace ktl
 	};
 
 	template<>
-	struct hash<unicode_string_view>
+	struct hash<unicode_string_view, void>
 	{
 		[[nodiscard]] hash_t operator()(const unicode_string_view& value) const
 		{

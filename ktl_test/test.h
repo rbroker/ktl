@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include <kernel>
 
 #define KTL_TEST(Name, TestBody)												\
 bool KTLTest_##Name(void)														\
@@ -26,3 +27,36 @@ bool test_unicode_string();
 bool test_unicode_string_view();
 bool test_list();
 bool test_memory();
+
+struct timer
+{
+	timer() :
+		start_{},
+		end_{},
+		frequency_{}
+	{
+	}
+
+	void start()
+	{
+		start_ = KeQueryPerformanceCounter(&frequency_);
+	}
+
+	void stop()
+	{
+		end_ = KeQueryPerformanceCounter(nullptr);
+	}
+
+	double elapsed()
+	{
+		double end = static_cast<double>(end_.QuadPart);
+		double start = static_cast<double>(start_.QuadPart);
+
+		return (end - start) / static_cast<double>(frequency_.QuadPart);
+	}
+
+private:
+	LARGE_INTEGER start_;
+	LARGE_INTEGER end_;
+	LARGE_INTEGER frequency_;
+};

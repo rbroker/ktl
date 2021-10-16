@@ -2,6 +2,18 @@
 
 namespace ktl
 {
+	template<class InputIterator, class T>
+	[[nodiscard]] InputIterator find(InputIterator first, InputIterator last, const T& value)
+	{
+		for (auto it = first; it != last; ++it)
+		{
+			if (value == *it)
+				return it;
+		}
+
+		return last;
+	}
+
 	template<class InputIterator, class UnaryPredicate>
 	[[nodiscard]] InputIterator find_if(InputIterator first, InputIterator last, UnaryPredicate predicate)
 	{

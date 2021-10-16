@@ -66,54 +66,54 @@ bool test_set()
 {
 	__try
 	{
-		ktl::set<ktl::unicode_string<>> set;
+		ktl::set<ktl::unicode_string<>> stringSet;
 
 		// insert & grow
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"foo" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"bar" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"baz" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"hoge" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"piyo" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"fuga" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"hogera" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"toto" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"xyzzy" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"qux" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"quux" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"quuz" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"corge" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"corgi" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"corgii" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"many corgs" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"trapezium" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"a" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"b" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"c" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"d" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"$" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"¢" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"ह" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"€" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"𐍈" }), "failed to insert string into set");
-		ASSERT_TRUE(set.insert(ktl::unicode_string_view{ L"よろしくお願いします。" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"foo" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"bar" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"baz" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"hoge" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"piyo" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"fuga" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"hogera" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"toto" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"xyzzy" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"qux" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"quux" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"quuz" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"corge" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"corgi" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"corgii" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"many corgs" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"trapezium" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"a" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"b" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"c" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"d" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"$" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"¢" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"ह" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"€" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"𐍈" }), "failed to insert string into set");
+		ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"よろしくお願いします。" }), "failed to insert string into set");
 
 		// find
 		{
-			auto it = set.find(ktl::unicode_string_view{ L"$" });
-			ASSERT_TRUE(it != set.end(), "unable to find expected entry in set");
+			auto it = stringSet.find(ktl::unicode_string_view{ L"$" });
+			ASSERT_TRUE(it != stringSet.end(), "unable to find expected entry in set");
 			ASSERT_TRUE(*it == L"$", "found entry didn't contain expected value: %wZ", it->data());
 		}
 
 		{
-			auto it = set.find(ktl::unicode_string_view{ L"corgi" });
-			ASSERT_TRUE(it != set.end(), "unable to find expected entry in set");
+			auto it = stringSet.find(ktl::unicode_string_view{ L"corgi" });
+			ASSERT_TRUE(it != stringSet.end(), "unable to find expected entry in set");
 			ASSERT_TRUE(*it == L"corgi", "found entry didn't contain expected value: %wZ", it->data());
 		}
 
 		// find code unit character string
 		{
-			auto it = set.find(ktl::unicode_string_view{ L"𐍈" });
-			ASSERT_TRUE(it != set.end(), "unable to find expected entry in set");
+			auto it = stringSet.find(ktl::unicode_string_view{ L"𐍈" });
+			ASSERT_TRUE(it != stringSet.end(), "unable to find expected entry in set");
 			ASSERT_TRUE(*it == L"𐍈", "found entry didn't contain expected value: %wZ", it->data());
 		}
 
@@ -122,17 +122,57 @@ bool test_set()
 		ASSERT_TRUE(extended_code_points.size() == (sizeof(L"𐍈") - sizeof(UNICODE_NULL)) / sizeof(wchar_t), "unexpected character count for extended code point: %llu", extended_code_points.size());
 
 		// iteration & erase
-		ASSERT_TRUE(set.find(ktl::unicode_string_view{ L"$" }) != set.end(), "unable to find expected entry in set");
-		auto sizeBefore = set.size();
-		for (auto it = set.begin(); it != set.end();)
+		ASSERT_TRUE(stringSet.find(ktl::unicode_string_view{ L"$" }) != stringSet.end(), "unable to find expected entry in set");
+		auto sizeBefore = stringSet.size();
+		for (auto it = stringSet.begin(); it != stringSet.end();)
 		{
 			if (*it == L"$")
-				it = set.erase(*it);
+				it = stringSet.erase(*it);
 			else
 				++it;
 		}
-		ASSERT_TRUE(set.find(ktl::unicode_string_view{ L"$" }) == set.end(), "erase entry still in set");
-		ASSERT_TRUE(sizeBefore == set.size() + 1, "more elements than expected erased from set: %llu -> %llu", sizeBefore, set.size());
+		ASSERT_TRUE(stringSet.find(ktl::unicode_string_view{ L"$" }) == stringSet.end(), "erase entry still in set");
+		ASSERT_TRUE(sizeBefore == stringSet.size() + 1, "more elements than expected erased from set: %llu -> %llu", sizeBefore, stringSet.size());
+
+		// Validate that lookup performance of set is superior to vector.
+		const int END_ELEMENT = 1000000;
+		const int FIND_VALUE = END_ELEMENT / 2;
+		ktl::set<int> intSet{ END_ELEMENT };
+		ktl::vector<int> intVector;
+
+		ASSERT_TRUE(intVector.reserve(END_ELEMENT), "failed to reserve vector capacity");
+
+		for (int i = 0; i < END_ELEMENT; ++i)
+		{
+			ASSERT_TRUE(intSet.insert(i), "failed to insert element %d into set", i);
+			ASSERT_TRUE(intVector.push_back(i), "failed to insert element %d into vector", i);
+		}
+
+		{
+			ktl::floating_point_state fpState;
+
+			double set_find = 0.0;
+			double vector_find = 0.0;
+			timer t;
+
+			{
+				t.start();
+				auto it = intSet.find(FIND_VALUE);
+				ASSERT_TRUE(it != intSet.end(), "Didn't find expected value %d in set", FIND_VALUE);
+				t.stop();
+				set_find = t.elapsed();
+			}
+
+			{
+				t.start();
+				auto it = ktl::find(intVector.begin(), intVector.end(), FIND_VALUE);
+				ASSERT_TRUE(it != intVector.end(), "Didn't find expected value %d in vector", FIND_VALUE);
+				t.stop();
+				vector_find = t.elapsed();
+			}
+
+			ASSERT_TRUE(vector_find > set_find, "Vector lookup was faster than set.");
+		}
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{

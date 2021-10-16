@@ -141,6 +141,42 @@ namespace ktl
 			return size() == 0;
 		}
 
+		[[nodiscard]] bool insert(const T& value)
+		{
+			if (!try_grow())
+				return false;
+
+			auto h = hash<T>{}(value);
+			auto bucketIdx = h % bucket_count();
+
+			if constexpr (sizeof(hash_t) != sizeof(size_t))
+			{
+				if (bucketIdx > numeric_limits<size_t>::max())
+					return false;
+			}
+
+			auto& bucket = table_[static_cast<size_t>(bucketIdx)];
+
+			auto it = find_if(bucket.begin(), bucket.end(), [&](const auto& element) -> bool
+			{
+				return Comparer()(element, value);
+			});
+
+			if (it == bucket.end())
+			{
+				if (!bucket.emplace_back(value))
+					return false;
+
+				++size_;
+			}
+			else
+			{
+				(*it) = value;
+			}
+
+			return true;
+		}
+
 		[[nodiscard]] bool insert(T&& value)
 		{
 			if (!try_grow())

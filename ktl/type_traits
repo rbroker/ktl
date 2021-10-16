@@ -138,9 +138,18 @@ namespace ktl
 	// ktl::hash
 	using hash_t = uint64_t;
 
-	template<typename T>
+	template<typename T, class enable = void>
 	struct hash
 	{
-		[[nodiscard]] hash_t operator()(T) const { return 0; }
+		static_assert(is_same_v<T, void> && false, "Hash implementation missing for type");
+	};
+
+	template<typename T>
+	struct hash<T, typename enable_if_t<is_trivially_copyable_v<T>>>
+	{
+		[[nodiscard]] hash_t operator()(const T& value) const
+		{
+			return wyhash(&value, sizeof(T), 0, _wyp);
+		}
 	};
 }

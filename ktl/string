@@ -422,7 +422,7 @@ namespace ktl
 	};
 
 	template<typename allocator_type>
-	struct hash<unicode_string<allocator_type>>
+	struct hash<unicode_string<allocator_type>, void>
 	{
 		[[nodiscard]] hash_t operator()(const unicode_string<allocator_type>& value) const
 		{
