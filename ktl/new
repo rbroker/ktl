@@ -10,6 +10,7 @@ namespace ktl
 
 	[[nodiscard]] void* pool_alloc(size_t size, pool_type type);
 	void pool_free(void* p);
+	void validate_pool_allocations();
 }
 
 // This needs to be in the std namespace, because the compiler will generate calls to aligned

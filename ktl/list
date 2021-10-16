@@ -46,13 +46,13 @@ namespace ktl
 		using iterator = list_iterator<element_type>;
 
 		list() :
-			a_()
+			a_{ allocator_type::instance() }
 		{
 			InitializeListHead(&head_);
 		}
 
-		list(allocator_type const& a) :
-			a_(a)
+		list(allocator_type& a) :
+			a_{ a }
 		{
 			InitializeListHead(&head_);
 		}
@@ -250,7 +250,7 @@ namespace ktl
 	private:
 		size_t size_ = 0;
 		LIST_ENTRY head_;
-		allocator_type a_ = {};
+		allocator_type& a_;
 	};
 
 	template<typename element_type>
@@ -374,8 +374,8 @@ namespace ktl
 	using nonpaged_list = list<T, nonpaged_pool_allocator>;
 
 	template<typename T>
-	using paged_lookaisde_list = list<T, paged_lookaside_allocator<T>>;
+	using paged_lookaisde_list = list<T, paged_lookaside_allocator<sizeof(list_element<T>)>>;
 
 	template<typename T>
-	using nonpaged_lookaside_list = list<T, nonpaged_lookaside_allocator<T>>;
+	using nonpaged_lookaside_list = list<T, nonpaged_lookaside_allocator<sizeof(list_element<T>)>>;
 }

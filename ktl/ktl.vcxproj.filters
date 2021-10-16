@@ -75,6 +75,9 @@
     <ClInclude Include="wdf">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="ktl_config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ktl_crt.cpp">

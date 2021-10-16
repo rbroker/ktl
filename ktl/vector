@@ -113,11 +113,11 @@ namespace ktl
 		using iterator = vector_iterator<T>;
 
 		vector() :
-			a_{}
+			a_{ allocator_type::instance() }
 		{
 		}
 
-		explicit vector(const allocator_type& a) :
+		explicit vector(allocator_type& a) :
 			a_{ a }
 		{
 		}
@@ -128,29 +128,32 @@ namespace ktl
 		vector(vector&& other) :
 			size_(move(other.size_)),
 			capacity_(move(other.capacity_)),
-			buffer_(move(other.buffer_))
+			buffer_(move(other.buffer_)),
+			a_(other.a_)
 		{
 			other.size_ = 0;
 			other.capacity_ = 0;
+			other.buffer_ = nullptr;
 		}
 
 		~vector()
 		{
-			// Deconstruct everything in the vector.
-			clear();
-
-			// Free the backing memory.
-			a_.deallocate(buffer_);
+			// Deconstruct everything in the vector, &
+			// free the backing memory.
+			clear_and_release_memory();
 		}
 
 		vector& operator=(vector&& other)
 		{
+			clear_and_release_memory();
+
 			buffer_ = move(other.buffer_);
 			size_ = other.size_;
 			capacity_ = other.capacity_;
 
 			other.size_ = 0;
 			other.capacity_ = 0;
+			other.buffer_ = nullptr;
 			return *this;
 		}
 
@@ -190,16 +193,18 @@ namespace ktl
 				{
 					for (size_t i = 0; i < size(); ++i)
 					{
-						tmp[i] = move(buffer_[i]);
+						auto p = addressof(tmp[i]);
+						observer_ptr<T> ptr = new (p) T(move(buffer_[i]));
+						if (!ptr)
+							return false;
+
+						data()[i].~T();
 					}
 				}
 			}
 
 			// Free existing backing memory.
-			if (buffer_)
-			{
-				a_.deallocate(buffer_);
-			}
+			release_memory();
 
 			capacity_ = newSize;
 			buffer_ = tmp;
@@ -234,7 +239,7 @@ namespace ktl
 
 		void pop_back()
 		{
-			auto& value = (*this)[size_ - 1];
+			auto& value = data()[size_ - 1];
 			value.~T();
 			--size_;
 		}
@@ -368,11 +373,25 @@ namespace ktl
 			return true;
 		}
 
+		void clear_and_release_memory()
+		{
+			clear();
+			release_memory();
+		}
+
+		void release_memory()
+		{
+			if (!buffer_)
+				return;
+
+			a_.deallocate(buffer_);
+		}
+
 	private:
 		size_t size_ = 0;
 		size_t capacity_ = 0;
 		T* buffer_ = nullptr;
-		allocator_type a_;
+		allocator_type& a_;
 	};
 
 	template<typename T>

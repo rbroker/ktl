@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ktl_core.h>
+
 #include <new>
 #include <type_traits>
 
@@ -33,156 +34,260 @@ namespace ktl
 		a.deallocate(p);
 	}
 
+	template <class T>
+	[[nodiscard]] constexpr T* addressof(T& value) noexcept {
+		return __builtin_addressof(value);
+	}
+
 	struct allocator
 	{
 		virtual ~allocator() {};
 
 		virtual void* allocate(size_t n) = 0;
 		virtual void deallocate(void* p) = 0;
+
+		void validate(const char* msg)
+		{
+#if KTL_TRACK_ALLOCATIONS
+			if (allocationCount_ != deallocationCount_)
+			{
+				KTL_LOG_ERROR("%s: alloc count (%llu) doesn't match dealloc count (%llu)\n", msg, allocationCount_, deallocationCount_);
+			}
+			else
+			{
+				KTL_LOG_TRACE("%s: allocation counts OK\n", msg);
+			}
+#else
+			UNREFERENCED_PARAMETER(msg);
+#endif
+		}
+
+#if KTL_TRACK_ALLOCATIONS
+	protected:
+		volatile LONG64 allocationCount_ = 0;
+		volatile LONG64 deallocationCount_ = 0;
+#endif
 	};
 
 	struct paged_pool_allocator : public allocator
 	{
+		paged_pool_allocator() = default;
+
+		paged_pool_allocator(const paged_pool_allocator&) = delete;
+		paged_pool_allocator(paged_pool_allocator&&) = delete;
+
+		paged_pool_allocator& operator=(const paged_pool_allocator&) = delete;
+		paged_pool_allocator& operator=(paged_pool_allocator&&) = delete;
+
+		~paged_pool_allocator()
+		{
+#if KTL_TRACK_ALLOCATIONS
+			validate(__FUNCTION__);
+#endif
+		}
+
 		[[nodiscard]] void* allocate(size_t n) override
 		{
-			return pool_alloc(n, pool_type::Paged);
+			auto p = pool_alloc(n, pool_type::Paged);
+#if KTL_TRACK_ALLOCATIONS
+			if (p)
+			{
+				InterlockedIncrement64(&allocationCount_);
+			}
+#endif
+			return p;
 		}
 
 		void deallocate(void* p) override
 		{
+#if KTL_TRACK_ALLOCATIONS
+			InterlockedIncrement64(&deallocationCount_);
+#endif
 			pool_free(p);
+		}
+
+		static paged_pool_allocator& instance()
+		{
+			static paged_pool_allocator a = {};
+			return a;
 		}
 	};
 
 	struct nonpaged_pool_allocator : public allocator
 	{
+		nonpaged_pool_allocator() = default;
+
+		nonpaged_pool_allocator(const nonpaged_pool_allocator&) = delete;
+		nonpaged_pool_allocator(nonpaged_pool_allocator&&) = delete;
+
+		nonpaged_pool_allocator& operator=(const nonpaged_pool_allocator&) = delete;
+		nonpaged_pool_allocator& operator=(nonpaged_pool_allocator&&) = delete;
+
+		~nonpaged_pool_allocator()
+		{
+#if KTL_TRACK_ALLOCATIONS
+			validate(__FUNCTION__);
+#endif
+		}
+
 		[[nodiscard]] void* allocate(size_t n) override
 		{
-			return pool_alloc(n, pool_type::NonPaged);
+			auto p = pool_alloc(n, pool_type::NonPaged);
+#if KTL_TRACK_ALLOCATIONS
+			if (p)
+			{
+				InterlockedIncrement64(&allocationCount_);
+			}
+#endif
+			return p;
 		}
 
 		void deallocate(void* p) override
 		{
+#if KTL_TRACK_ALLOCATIONS
+			InterlockedIncrement64(&deallocationCount_);
+#endif
 			pool_free(p);
+		}
+
+		static nonpaged_pool_allocator& instance()
+		{
+			static nonpaged_pool_allocator a = {};
+			return a;
 		}
 	};
 
-	template<typename T>
+	template<size_t BLOCK_SIZE>
 	struct paged_lookaside_allocator : public allocator
 	{
-		paged_lookaside_allocator() :
-			owner_(true),
-			lookaside_ptr_(&lookaside_)
+		paged_lookaside_allocator()
 		{
 			ExInitializePagedLookasideList(
 				&lookaside_,
 				nullptr,
 				nullptr,
 				0,
-				sizeof(T),
+				BLOCK_SIZE,
 				KTL_POOL_TAG,
 				0);
 		}
 
-		/// <summary>
-		/// Creates a non-owning copy of the allocator
-		/// </summary>
-		paged_lookaside_allocator(const paged_lookaside_allocator& other) :
-			owner_(false),
-			lookaside_ptr_(other.lookaside_ptr_)
-		{
-		}
+		paged_lookaside_allocator(const paged_lookaside_allocator&) = delete;
+		paged_lookaside_allocator(paged_lookaside_allocator&&) = delete;
+
+		paged_lookaside_allocator& operator=(const paged_lookaside_allocator&) = delete;
+		paged_lookaside_allocator& operator=(paged_lookaside_allocator&&) = delete;
 
 		~paged_lookaside_allocator()
 		{
-			if (!owner_)
-				return;
-
+#if KTL_TRACK_ALLOCATIONS
+			validate(__FUNCTION__);
+#endif
 			ExDeletePagedLookasideList(&lookaside_);
 		}
 
 		[[nodiscard]] void* allocate(size_t n) override
 		{
-			if (n > sizeof(T))
+			if (n > BLOCK_SIZE)
 			{
-				KTL_LOG_ERROR("Invalid paged_lookaside allocation: %llu > %llu", n, sizeof(T));
+				KTL_LOG_ERROR("Invalid paged_lookaside allocation: %llu > %llu", n, BLOCK_SIZE);
 				return nullptr;
 			}
 
-			return ExAllocateFromPagedLookasideList(lookaside_ptr_);
+			auto p = ExAllocateFromPagedLookasideList(&lookaside_);
+
+#if KTL_TRACK_ALLOCATIONS
+			if (p)
+			{
+				InterlockedIncrement64(&allocationCount_);
+			}
+#endif
+
+			return p;
 		}
 
 		void deallocate(void* p) override
 		{
-			ExFreeToPagedLookasideList(lookaside_ptr_, p);
+#if KTL_TRACK_ALLOCATIONS
+			InterlockedIncrement64(&deallocationCount_);
+#endif
+			ExFreeToPagedLookasideList(&lookaside_, p);
+		}
+
+		static paged_lookaside_allocator& instance()
+		{
+			static paged_lookaside_allocator<BLOCK_SIZE> a = {};
+			return a;
 		}
 
 	private:
 		PAGED_LOOKASIDE_LIST lookaside_;
-		PPAGED_LOOKASIDE_LIST lookaside_ptr_ = nullptr;
-		bool owner_ = false;
 	};
 
-	template<typename T>
+	template<size_t BLOCK_SIZE>
 	struct nonpaged_lookaside_allocator : public allocator
 	{
-		nonpaged_lookaside_allocator() :
-			owner_(true),
-			lookaside_ptr_(&lookaside_)
+		nonpaged_lookaside_allocator()
 		{
 			ExInitializeNPagedLookasideList(
 				&lookaside_,
 				nullptr,
 				nullptr,
 				0,
-				sizeof(T),
+				BLOCK_SIZE,
 				KTL_POOL_TAG,
 				0);
 		}
 
-		/// <summary>
-		/// Creates a non-owning copy of the allocator
-		/// </summary>
-		nonpaged_lookaside_allocator(const nonpaged_lookaside_allocator& other) :
-			owner_(false),
-			lookaside_ptr_(other.lookaside_ptr_)
-		{
-		}
+		nonpaged_lookaside_allocator(const nonpaged_lookaside_allocator&) = delete;
+		nonpaged_lookaside_allocator(nonpaged_lookaside_allocator&&) = delete;
+
+		nonpaged_lookaside_allocator& operator=(const nonpaged_lookaside_allocator&) = delete;
+		nonpaged_lookaside_allocator& operator=(nonpaged_lookaside_allocator&&) = delete;
 
 		~nonpaged_lookaside_allocator()
 		{
-			if (!owner_)
-				return;
-
+#if KTL_TRACK_ALLOCATIONS
+			validate(__FUNCTION__);
+#endif
 			ExDeleteNPagedLookasideList(&lookaside_);
 		}
 
 		[[nodiscard]] void* allocate(size_t n) override
 		{
-			if (n > sizeof(T))
+			if (n > BLOCK_SIZE)
 			{
-				KTL_LOG_ERROR("Invalid nonpaged_lookaside allocation: %llu > %llu", n, sizeof(T));
+				KTL_LOG_ERROR("Invalid nonpaged_lookaside allocation: %llu > %llu", n, BLOCK_SIZE);
 				return nullptr;
 			}
 
-			return ExAllocateFromNPagedLookasideList(lookaside_ptr_);
+			auto p = ExAllocateFromNPagedLookasideList(&lookaside_);
+#if KTL_TRACK_ALLOCATIONS
+			if (p)
+			{
+				InterlockedIncrement64(&allocationCount_);
+			}
+#endif
+			return p;
 		}
 
 		void deallocate(void* p) override
 		{
-			ExFreeToNPagedLookasideList(lookaside_ptr_, p);
+#if KTL_TRACK_ALLOCATIONS
+			InterlockedIncrement64(&deallocationCount_);
+#endif
+			ExFreeToNPagedLookasideList(&lookaside_, p);
+		}
+
+		static nonpaged_lookaside_allocator& instance()
+		{
+			static nonpaged_lookaside_allocator<BLOCK_SIZE> a = {};
+			return a;
 		}
 
 	private:
 		NPAGED_LOOKASIDE_LIST lookaside_;
-		PNPAGED_LOOKASIDE_LIST lookaside_ptr_ = nullptr;
-		bool owner_ = false;
 	};
-
-	template <class T>
-	[[nodiscard]] constexpr T* addressof(T& value) noexcept {
-		return __builtin_addressof(value);
-	}
 
 	// Scalar unique_ptr
 	template<class T>

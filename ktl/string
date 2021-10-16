@@ -19,13 +19,13 @@ namespace ktl
 
 		unicode_string() :
 			str_{},
-			a_{}
+			a_{ allocator_type::instance() }
 		{
 		}
 
-		explicit unicode_string(const allocator_type& a) :
+		explicit unicode_string(allocator_type& a) :
 			str_{},
-			a_(a)
+			a_{ a }
 		{
 		}
 
@@ -53,7 +53,7 @@ namespace ktl
 
 		unicode_string(const PUNICODE_STRING other) :
 			str_{},
-			a_ {}
+			a_{ allocator_type::instance() }
 		{
 			if (!byte_resize(other->Length))
 			{
@@ -80,7 +80,8 @@ namespace ktl
 
 		unicode_string(unicode_string&& other) :
 			buffer_(move(other.buffer_)),
-			str_(other.str_)
+			str_(other.str_),
+			a_(other.a_)
 		{
 			other.str_ = {};
 			other.buffer_ = nullptr;
@@ -101,6 +102,7 @@ namespace ktl
 
 			str_ = other.str_;
 			other.str_ = {};
+
 			return *this;
 		}
 
@@ -418,9 +420,9 @@ namespace ktl
 		}
 
 	private:
-		wchar_t* buffer_;
+		wchar_t* buffer_ = nullptr;
 		UNICODE_STRING str_;
-		allocator_type a_ = {};
+		allocator_type& a_;
 	};
 
 	template<typename allocator_type>

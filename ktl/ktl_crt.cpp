@@ -11,9 +11,9 @@ namespace ktl
 	extern "C" { int _fltused = 1; }
 
 	/* Memory Allocations */
-#ifdef KTL_TRACK_ALLOCATIONS
-	volatile INT64 _ktl_pool_alloc_count;
-	volatile INT64 _ktl_pool_free_count;
+#if KTL_TRACK_ALLOCATIONS
+	volatile INT64 ktl_pool_alloc_count__;
+	volatile INT64 ktl_pool_free_count__;
 #endif
 
 	[[nodiscard]] void* pool_alloc(size_t size, pool_type type)
@@ -22,11 +22,11 @@ namespace ktl
 		if (type == pool_type::Paged)
 			pool = PagedPool;
 
-#ifdef KTL_TRACK_ALLOCATIONS
+#if KTL_TRACK_ALLOCATIONS
 		auto p = ExAllocatePoolZero(pool, size, KTL_POOL_TAG);
 
 		if (p != nullptr)
-			InterlockedIncrement64(&_ktl_pool_alloc_count);
+			InterlockedIncrement64(&ktl_pool_alloc_count__);
 
 		return p;
 #else
@@ -38,14 +38,24 @@ namespace ktl
 
 	void pool_free(void* p)
 	{
-#ifdef KTL_TRACK_ALLOCATIONS
-		InterlockedIncrement64(&_ktl_pool_free_count);
+#if KTL_TRACK_ALLOCATIONS
+		InterlockedIncrement64(&ktl_pool_free_count__);
 #endif
 		::ExFreePoolWithTag(p, KTL_POOL_TAG);
 	}
 
-	using __pvfv = void(__cdecl*)(void);
-	using __pifv = int(__cdecl*)(void);
+	void validate_pool_allocations()
+	{
+#if KTL_TRACK_ALLOCATIONS
+		if (ktl_pool_alloc_count__ != ktl_pool_free_count__)
+			KTL_LOG_ERROR("Alloc/Free mismatch: %lld/%lld\n", ktl_pool_alloc_count__, ktl_pool_free_count__);
+		else
+			KTL_LOG_TRACE("pool alloc count: %lld, pool free count: %lld\n", ktl_pool_alloc_count__, ktl_pool_free_count__);
+#endif
+	}
+
+	using pvfv__ = void(__cdecl*)(void);
+	using pifv__ = int(__cdecl*)(void);
 
 	/* Dynamic initializers are placed in .CRT$XCU, so we define XCA and XCZ as start/end pointers
 	 *  same as the usermode CRT. That'll let us spin through the table of initializer functions
@@ -56,59 +66,59 @@ namespace ktl
 		// C dynamic initialization
 		#pragma section(".CRT$XIA", read)
 		#pragma section(".CRT$XIZ", read)
-		__declspec(allocate(".CRT$XIA")) __pifv __xi_a[] = { nullptr };
-		__declspec(allocate(".CRT$XIZ")) __pifv __xi_z[] = { nullptr };
+		__declspec(allocate(".CRT$XIA")) pifv__ xi_a__[] = { nullptr };
+		__declspec(allocate(".CRT$XIZ")) pifv__ xi_z__[] = { nullptr };
 
 		// C++ dynamic initialization
 		#pragma section(".CRT$XCA", read)
 		#pragma section(".CRT$XCZ", read)
-		__declspec(allocate(".CRT$XCA")) __pvfv __xc_a[] = { nullptr };
-		__declspec(allocate(".CRT$XCZ")) __pvfv __xc_z[] = { nullptr };
+		__declspec(allocate(".CRT$XCA")) pvfv__ xc_a__[] = { nullptr };
+		__declspec(allocate(".CRT$XCZ")) pvfv__ xc_z__[] = { nullptr };
 
 		// C pre terminators
 		#pragma section(".CRT$XPA", read)
 		#pragma section(".CRT$XPZ", read)
-		__declspec(allocate(".CRT$XPA")) __pvfv __xp_a[] = { nullptr };
-		__declspec(allocate(".CRT$XPZ")) __pvfv __xp_z[] = { nullptr };
+		__declspec(allocate(".CRT$XPA")) pvfv__ xp_a__[] = { nullptr };
+		__declspec(allocate(".CRT$XPZ")) pvfv__ xp_z__[] = { nullptr };
 
 		// C terminators
 		#pragma section(".CRT$XTA", read)
 		#pragma section(".CRT$XTZ", read)
-		__declspec(allocate(".CRT$XTA")) __pvfv __xt_a[] = { nullptr };
-		__declspec(allocate(".CRT$XTZ")) __pvfv __xt_z[] = { nullptr };
+		__declspec(allocate(".CRT$XTA")) pvfv__ xt_a__[] = { nullptr };
+		__declspec(allocate(".CRT$XTZ")) pvfv__ xt_z__[] = { nullptr };
 	}
 
 	struct __at_exit_fn_element
 	{
 		LIST_ENTRY Entry;
-		__pvfv AtExitCallback;
+		pvfv__ AtExitCallback;
 	};
 
-	LIST_ENTRY __at_exit_fn_list;
-	PKSPIN_LOCK __at_exit_lock = nullptr;
+	LIST_ENTRY at_exit_fn_list__;
+	PKSPIN_LOCK at_exit_lock__ = nullptr;
 
 	// https://docs.microsoft.com/en-us/cpp/c-runtime-library/crt-initialization?view=msvc-160
 	// This will call every function pointer between start & end, skipping null function pointers.
-	void walk_function_table(__pvfv* start, __pvfv* end)
+	void walk_function_table(pvfv__* start, pvfv__* end)
 	{
 		for (auto curr = start; curr < end; ++curr)
 		{
 			if (!(*curr))
 				continue;
 
-			__pvfv fn = **curr;
+			pvfv__ fn = **curr;
 			fn();
 		}
 	}
 
-	[[nodiscard]] int walk_function_table(__pifv* start, __pifv* end)
+	[[nodiscard]] int walk_function_table(pifv__* start, pifv__* end)
 	{
 		for (auto curr = start; curr < end; ++curr)
 		{
 			if (!(*curr))
 				continue;
 
-			__pifv fn = **curr;
+			pifv__ fn = **curr;
 			if (fn())
 				return 1;
 		}
@@ -129,32 +139,32 @@ namespace ktl
 
 	[[nodiscard]] bool initialize_runtime()
 	{
-#ifdef KTL_TRACK_ALLOCATIONS
-		_ktl_pool_alloc_count = 0;
-		_ktl_pool_free_count = 0;
+#if KTL_TRACK_ALLOCATIONS
+		ktl_pool_alloc_count__ = 0;
+		ktl_pool_free_count__ = 0;
 #endif
 
-		__at_exit_lock = new_spinlock();
+		at_exit_lock__ = new_spinlock();
 
-		if (!__at_exit_lock)
+		if (!at_exit_lock__)
 		{
 			KTL_LOG_ERROR("Failed to initialize atexit spinlock\n");
 			return false;
 		}
 
-		InitializeListHead(&__at_exit_fn_list);
+		InitializeListHead(&at_exit_fn_list__);
 
 		__try
 		{
 			// Call all C dynamic initializers
-			if (walk_function_table(__xi_a, __xi_z))
+			if (walk_function_table(xi_a__, xi_z__))
 			{
 				KTL_LOG_ERROR("Failed to walk C dynamic initializers\n");
 				return false;
 			}
 
 			// Call all C++ dynamic initializers.
-			walk_function_table(__xc_a, __xc_z);
+			walk_function_table(xc_a__, xc_z__);
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
@@ -165,9 +175,9 @@ namespace ktl
 		return true;
 	}
 
-	int atexit(__pvfv functionPtr)
+	int atexit(pvfv__ functionPtr)
 	{
-		if (!__at_exit_lock)
+		if (!at_exit_lock__)
 			return 1;
 
 		auto atExit = static_cast<__at_exit_fn_element*>(pool_alloc(sizeof(__at_exit_fn_element), pool_type::NonPaged));
@@ -178,30 +188,30 @@ namespace ktl
 		atExit->AtExitCallback = functionPtr;
 
 		KIRQL oldIrq;
-		KeAcquireSpinLock(__at_exit_lock, &oldIrq);
+		KeAcquireSpinLock(at_exit_lock__, &oldIrq);
 
-		InsertHeadList(&__at_exit_fn_list, &(atExit->Entry));
+		InsertHeadList(&at_exit_fn_list__, &(atExit->Entry));
 
-		KeReleaseSpinLock(__at_exit_lock, oldIrq);
+		KeReleaseSpinLock(at_exit_lock__, oldIrq);
 
 		return 0;
 	}
 
 	void unload_runtime()
 	{
-		if (!__at_exit_lock)
+		if (!at_exit_lock__)
 		{
 			KTL_LOG_ERROR("Unable to run atexit() calls due to invalid spinlock\n");
 			return;
 		}
 
 		KIRQL oldIrq;
-		KeAcquireSpinLock(__at_exit_lock, &oldIrq);
+		KeAcquireSpinLock(at_exit_lock__, &oldIrq);
 
 		while (true)
 		{
-			auto head = RemoveHeadList(&__at_exit_fn_list);
-			if (head == &__at_exit_fn_list)
+			auto head = RemoveHeadList(&at_exit_fn_list__);
+			if (head == &at_exit_fn_list__)
 				break;
 
 			auto entry = CONTAINING_RECORD(head, __at_exit_fn_element, Entry);
@@ -209,29 +219,24 @@ namespace ktl
 			pool_free(entry);
 		}
 
-		KeReleaseSpinLock(__at_exit_lock, oldIrq);
+		KeReleaseSpinLock(at_exit_lock__, oldIrq);
 
-		pool_free(__at_exit_lock);
-		__at_exit_lock = nullptr;
+		pool_free(at_exit_lock__);
+		at_exit_lock__ = nullptr;
 
 		__try
 		{
 			// Call all pre-terminators
-			walk_function_table(__xp_a, __xp_z);
+			walk_function_table(xp_a__, xp_z__);
 
 			// Call all C terminators
-			walk_function_table(__xt_a, __xt_z);
+			walk_function_table(xt_a__, xt_z__);
 		}
 		__except (EXCEPTION_EXECUTE_HANDLER)
 		{
 		}
 
-#ifdef KTL_TRACK_ALLOCATIONS
-		if (_ktl_pool_alloc_count != _ktl_pool_free_count)
-			KTL_LOG_ERROR("Alloc/Free mismatch: %lld/%lld\n", _ktl_pool_alloc_count, _ktl_pool_free_count);
-		else
-			KTL_LOG_TRACE("pool alloc count: %lld, pool free count: %lld\n", _ktl_pool_alloc_count, _ktl_pool_free_count);
-#endif
+		ktl::validate_pool_allocations();
 	}
 }
 

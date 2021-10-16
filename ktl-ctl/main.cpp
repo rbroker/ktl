@@ -150,18 +150,29 @@ void RunTest(DWORD ioctl, std::vector<std::system_error>* errors, std::mutex* mt
 	}
 }
 
-void DriverTest()
+void DriverTest(const std::wstring_view mode = L"all")
 {
 	std::mutex mtx;
 	std::vector<std::system_error> errors;
 
 	{
-		std::jthread listTestThr(RunTest, IOCTL_KTLTEST_METHOD_LIST_TEST, &errors, &mtx, "<list>");
-		std::jthread memoryTestThr(RunTest, IOCTL_KTLTEST_METHOD_MEMORY_TEST, &errors, &mtx, "<memory>");
-		std::jthread setTestThr(RunTest, IOCTL_KTLTEST_METHOD_SET_TEST, &errors, &mtx, "<set>");
-		std::jthread vectorTestThr(RunTest, IOCTL_KTLTEST_METHOD_VECTOR_TEST, &errors, &mtx, "<vector>");
-		std::jthread stringTestThr(RunTest, IOCTL_KTLTEST_METHOD_STRING_TEST, &errors, &mtx, "<unicode_string>");
-		std::jthread stringViewTestThr(RunTest, IOCTL_KTLTEST_METHOD_STRING_VIEW_TEST, &errors, &mtx, "<unicode_string_view>");
+		if (mode == L"all" || mode == L"list")
+			std::jthread listTestThr(RunTest, IOCTL_KTLTEST_METHOD_LIST_TEST, &errors, &mtx, "<list>");
+
+		if (mode == L"all" || mode == L"memory")
+			std::jthread memoryTestThr(RunTest, IOCTL_KTLTEST_METHOD_MEMORY_TEST, &errors, &mtx, "<memory>");
+
+		if (mode == L"all" || mode == L"set")
+			std::jthread setTestThr(RunTest, IOCTL_KTLTEST_METHOD_SET_TEST, &errors, &mtx, "<set>");
+
+		if (mode == L"all" || mode == L"vector")
+			std::jthread vectorTestThr(RunTest, IOCTL_KTLTEST_METHOD_VECTOR_TEST, &errors, &mtx, "<vector>");
+
+		if (mode == L"all" || mode == L"unicode_string")
+			std::jthread stringTestThr(RunTest, IOCTL_KTLTEST_METHOD_STRING_TEST, &errors, &mtx, "<unicode_string>");
+
+		if (mode == L"all" || mode == L"unicode_string_view")
+			std::jthread stringViewTestThr(RunTest, IOCTL_KTLTEST_METHOD_STRING_VIEW_TEST, &errors, &mtx, "<unicode_string_view>");
 	}
 
 	for (const auto& err : errors)
@@ -173,6 +184,7 @@ int wmain(int argc, wchar_t** argv)
 	try
 	{
 		std::wstring_view command;
+		std::wstring_view mode = L"all";
 		std::wstring inf_path = L"ktl_test.inf";
 
 		for (int i = 0; i < argc; ++i)
@@ -185,6 +197,9 @@ int wmain(int argc, wchar_t** argv)
 			}
 			else if (i == 2)
 			{
+				if (command == L"test")
+					mode = current;
+
 				inf_path = current;
 			}
 		}
@@ -214,7 +229,7 @@ int wmain(int argc, wchar_t** argv)
 		else if (command == L"test")
 		{
 			DriverStart();
-			DriverTest();
+			DriverTest(mode);
 			DriverStop();
 		}
 		else if (command == L"soak")

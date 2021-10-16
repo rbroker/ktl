@@ -10,9 +10,13 @@ extern "C"
 #pragma warning(pop)
 }
 
-void SerializingDebugPrint(ULONG componentId, ULONG level, PCSTR format, ...);
+#include <ktl_core.h>
 
-#define LOG_MSG(level, fmt, ...) SerializingDebugPrint(DPFLTR_DEFAULT_ID, level, "[KTLTEST] " __FUNCTION__ ": " fmt, __VA_ARGS__)
+#define LOG_MSG(level, fmt, ...) do {																\
+			KeEnterCriticalRegion();																\
+			DbgPrintEx(DPFLTR_DEFAULT_ID, level, "[KTLTEST] " __FUNCTION__ ": " fmt, __VA_ARGS__);	\
+			KeLeaveCriticalRegion();																\
+		} while (0)
 
 #define LOG_ERROR(fmt, ...) LOG_MSG(DPFLTR_ERROR_LEVEL, fmt, __VA_ARGS__)
 #define LOG_WARNING(fmt, ...) LOG_MSG(DPFLTR_WARNING_LEVEL, fmt, __VA_ARGS__)
