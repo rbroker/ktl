@@ -69,7 +69,10 @@ namespace ktl
 #endif
 	};
 
-	struct paged_pool_allocator : public allocator
+	struct generic_allocator : public allocator {};
+	struct fixed_size_allocator : public allocator {};
+
+	struct paged_pool_allocator : public generic_allocator
 	{
 		paged_pool_allocator() = default;
 
@@ -113,7 +116,7 @@ namespace ktl
 		}
 	};
 
-	struct nonpaged_pool_allocator : public allocator
+	struct nonpaged_pool_allocator : public generic_allocator
 	{
 		nonpaged_pool_allocator() = default;
 
@@ -158,7 +161,7 @@ namespace ktl
 	};
 
 	template<size_t BLOCK_SIZE>
-	struct paged_lookaside_allocator : public allocator
+	struct paged_lookaside_allocator : public fixed_size_allocator
 	{
 		paged_lookaside_allocator()
 		{
@@ -225,7 +228,7 @@ namespace ktl
 	};
 
 	template<size_t BLOCK_SIZE>
-	struct nonpaged_lookaside_allocator : public allocator
+	struct nonpaged_lookaside_allocator : public fixed_size_allocator
 	{
 		nonpaged_lookaside_allocator()
 		{

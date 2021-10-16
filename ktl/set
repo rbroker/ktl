@@ -115,8 +115,9 @@ namespace ktl
 	template<class T, class Comparer = equal_to<T>, class allocator_type = paged_pool_allocator>
 	struct set
 	{
-		using iterator = set_iterator<T, Comparer, allocator_type>;
+		static_assert(is_base_of_v<generic_allocator, allocator_type>, "ktl::set requires allocator capable of arbitrary size allocations");
 
+		using iterator = set_iterator<T, Comparer, allocator_type>;
 		friend struct iterator;
 
 		set(size_t capacity = 4)

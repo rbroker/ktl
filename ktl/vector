@@ -110,6 +110,8 @@ namespace ktl
 	template<class T, class allocator_type = paged_pool_allocator>
 	struct vector
 	{
+		static_assert(is_base_of_v<generic_allocator, allocator_type>, "ktl::vector requires allocator capable of arbitrary size allocations");
+
 		using iterator = vector_iterator<T>;
 
 		vector() :
