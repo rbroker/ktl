@@ -319,8 +319,14 @@ namespace ktl
 
 					for (size_t current = b; current < e; ++current)
 					{
+						auto p = addressof(buffer_[current]);
+
 						auto next = current + 1;
-						buffer_[current] = move(buffer_[next]);
+						observer_ptr<T> ptr = new (p) T(move(buffer_[next]));
+						if (!ptr)
+							return end();
+
+						buffer_[next].~T();
 					}
 				}
 
