@@ -125,13 +125,6 @@ namespace ktl
 				KTL_LOG_ERROR("Failed to reserve initial set storage!\n");
 		}
 
-		explicit set(const allocator_type& a, size_t capacity = 4) :
-			a_()
-		{
-			if (!reserve(capacity))
-				KTL_LOG_ERROR("Failed to reserve initial set storage!\n");
-		}
-
 		inline [[nodiscard]] size_t size() const
 		{
 			return size_;
@@ -371,6 +364,6 @@ namespace ktl
 	private:
 		size_t size_ = 0;
 		allocator_type a_;
-		vector<vector<T, allocator_type>, allocator_type> table_{ a_ };
+		vector<vector<T, allocator_type>, allocator_type> table_;
 	};
 }

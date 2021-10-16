@@ -117,11 +117,6 @@ namespace ktl
 		{
 		}
 
-		explicit vector(allocator_type& a) :
-			a_{ a }
-		{
-		}
-
 		vector(const vector& other) = delete;
 		vector& operator=(const vector& other) = delete;
 

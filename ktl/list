@@ -51,12 +51,6 @@ namespace ktl
 			InitializeListHead(&head_);
 		}
 
-		list(allocator_type& a) :
-			a_{ a }
-		{
-			InitializeListHead(&head_);
-		}
-
 		~list()
 		{
 			clear();

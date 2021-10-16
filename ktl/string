@@ -23,12 +23,6 @@ namespace ktl
 		{
 		}
 
-		explicit unicode_string(allocator_type& a) :
-			str_{},
-			a_{ a }
-		{
-		}
-
 		// http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p2025r1.html
 		// If we can get guaranteed copy elision for NRVO, then probably
 		// best to delete the copy constructor / assign, and see if we can move
