@@ -170,7 +170,7 @@ namespace ktl
 				nullptr,
 				nullptr,
 				POOL_TYPE::PagedPool,
-				EX_LOOKASIDE_LIST_EX_FLAGS_FAIL_NO_RAISE,
+				EX_LOOKASIDE_LIST_EX_FLAGS_RAISE_ON_FAIL,
 				BLOCK_SIZE,
 				KTL_POOL_TAG,
 				0
@@ -199,16 +199,23 @@ namespace ktl
 				return nullptr;
 			}
 
-			auto p = ExAllocateFromLookasideListEx(&lookaside_);
+			__try
+			{
+				auto p = ExAllocateFromLookasideListEx(&lookaside_);
 
 #if KTL_TRACK_ALLOCATIONS
-			if (p)
-			{
-				InterlockedIncrement64(&allocationCount_);
-			}
+				if (p)
+				{
+					InterlockedIncrement64(&allocationCount_);
+				}
 #endif
 
-			return p;
+				return p;
+			}
+			__except (EXCEPTION_EXECUTE_HANDLER)
+			{
+				return nullptr;
+			}
 		}
 
 		void deallocate(void* p) override
@@ -239,7 +246,7 @@ namespace ktl
 				nullptr,
 				nullptr,
 				POOL_TYPE::NonpagedPoolNx,
-				EX_LOOKASIDE_LIST_EX_FLAGS_FAIL_NO_RAISE,
+				EX_LOOKASIDE_LIST_EX_FLAGS_RAISE_ON_FAIL,
 				BLOCK_SIZE,
 				KTL_POOL_TAG,
 				0
@@ -268,14 +275,21 @@ namespace ktl
 				return nullptr;
 			}
 
-			auto p = ExAllocateFromLookasideListEx(&lookaside_);
-#if KTL_TRACK_ALLOCATIONS
-			if (p)
+			__try
 			{
-				InterlockedIncrement64(&allocationCount_);
-			}
+				auto p = ExAllocateFromLookasideListEx(&lookaside_);
+#if KTL_TRACK_ALLOCATIONS
+				if (p)
+				{
+					InterlockedIncrement64(&allocationCount_);
+				}
 #endif
-			return p;
+				return p;
+			}
+			__except (EXCEPTION_EXECUTE_HANDLER)
+			{
+				return nullptr;
+			}
 		}
 
 		void deallocate(void* p) override
