@@ -17,11 +17,7 @@ extern "C"
 
 #define KTL_POOL_TAG 'LTSK'
 
-#define KTL_LOG_MSG(level, fmt, ...) do {															\
-			KeEnterCriticalRegion();																\
-			DbgPrintEx(DPFLTR_DEFAULT_ID, level, "[KTL] " __FUNCTION__ ": " fmt, __VA_ARGS__);		\
-			KeLeaveCriticalRegion();																\
-		} while (0)
+#define KTL_LOG_MSG(level, fmt, ...) DbgPrintEx(DPFLTR_DEFAULT_ID, level, "[KTL] " __FUNCTION__ ": " fmt, __VA_ARGS__)
 
 #define KTL_LOG_ERROR(fmt, ...) KTL_LOG_MSG(DPFLTR_ERROR_LEVEL, fmt, __VA_ARGS__)
 #define KTL_LOG_TRACE(fmt, ...) KTL_LOG_MSG(DPFLTR_TRACE_LEVEL, fmt, __VA_ARGS__)
@@ -29,4 +25,16 @@ extern "C"
 #define KTL_REQUIRE_SUCCESS(call) do { NTSTATUS _callRet = ##call; if (NT_ERROR(_callRet)) { KTL_LOG_ERROR("call failed: %d\n", _callRet); } } while(0)
 #define KTL_REQUIRE_NOTNULL(p) do { } while (0)
 #define KTL_LOG_WARNING(x)
+
+#if KTL_TRACE_COPY_CONSTRUCTORS
+#define KTL_TRACE_COPY_CONSTRUCTOR	KTL_LOG_TRACE("copy constructing\n");
+#else
+#define KTL_TRACE_COPY_CONSTRUCTOR
+#endif
+
+#if KTL_TRACE_COPY_ASSIGNMENTS
+#define KTL_TRACE_COPY_ASSIGNMENT	KTL_LOG_TRACE("copy copy assigning\n");
+#else
+#define KTL_TRACE_COPY_ASSIGNMENT
+#endif
 

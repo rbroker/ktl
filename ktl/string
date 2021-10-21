@@ -33,6 +33,8 @@ namespace ktl
 			str_{},
 			a_{ other.a_ }
 		{
+			KTL_TRACE_COPY_CONSTRUCTOR;
+
 			if (!resize(other.size()))
 			{
 				KTL_LOG_ERROR("Failed to resize string for copy-construction\n");
@@ -85,14 +87,13 @@ namespace ktl
 
 		~unicode_string()
 		{
-			if (!buffer_)
-				return;
-
-			a_.deallocate(buffer_);
+			release_memory();
 		}
 
 		unicode_string& operator=(unicode_string&& other)
 		{
+			release_memory();
+
 			buffer_ = other.buffer_;
 			other.buffer_ = nullptr;
 
@@ -113,6 +114,15 @@ namespace ktl
 		{
 			unicode_string_view tmp{ str };
 			*this = move(tmp);
+			return *this;
+		}
+
+		unicode_string& operator=(const unicode_string& other)
+		{
+			KTL_TRACE_COPY_ASSIGNMENT;
+
+			unicode_string newString{ other };
+			*this = move(newString);
 			return *this;
 		}
 
@@ -413,6 +423,15 @@ namespace ktl
 		int compare(const unicode_string& other, bool caseInsensitive = false) const
 		{
 			return RtlCompareUnicodeString(data(), other.data(), caseInsensitive ? TRUE : FALSE);
+		}
+
+	private:
+		void release_memory()
+		{
+			if (!buffer_)
+				return;
+
+			a_.deallocate(buffer_);
 		}
 
 	private:

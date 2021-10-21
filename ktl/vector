@@ -2,6 +2,7 @@
 
 #include <limits>
 #include <memory>
+#include <optional>
 
 namespace ktl
 {
@@ -19,14 +20,14 @@ namespace ktl
 		{
 		}
 
-		vector_iterator(pointer begin, pointer end) :
+		vector_iterator(const pointer begin, const pointer end) :
 			begin_(begin),
 			end_(end),
 			index_(0)
 		{
 		}
 
-		vector_iterator(pointer begin, pointer end, size_t index) :
+		vector_iterator(const pointer begin, const pointer end, size_t index) :
 			begin_(begin),
 			end_(end),
 			index_(index)
@@ -38,6 +39,18 @@ namespace ktl
 			end_(other.end_),
 			index_(other.index_)
 		{
+			KTL_TRACE_COPY_CONSTRUCTOR;
+		}
+
+		vector_iterator& operator=(const vector_iterator& other)
+		{
+			KTL_TRACE_COPY_ASSIGNMENT;
+
+			begin_ = other.begin_;
+			end_ = other.end_;
+			index_ = other.index_;
+
+			return *this;
 		}
 
 		reference operator*() const
@@ -119,9 +132,6 @@ namespace ktl
 		{
 		}
 
-		vector(const vector& other) = delete;
-		vector& operator=(const vector& other) = delete;
-
 		vector(vector&& other) :
 			size_(move(other.size_)),
 			capacity_(move(other.capacity_)),
@@ -154,17 +164,41 @@ namespace ktl
 			return *this;
 		}
 
+		vector(const vector& other) = delete;
+		vector& operator=(const vector& other) = delete;
+
+		/// <summary>
+		/// Perform an explicit copy of this vector.
+		/// </summary>
+		/// <returns>An optional containing the copied vector if no errors occurred while copying</returns>
+		optional<vector> copy()
+		{
+			vector copiedVector;
+
+			if (!copiedVector.reserve(size()))
+				return {};
+
+			auto e = end();
+			for (auto it = begin(); it != e; ++it)
+			{
+				if (!copiedVector.emplace_back(*it))
+					return {};
+			}
+
+			return optional<vector>{ move(copiedVector) };
+		}
+
 		inline [[nodiscard]] size_t size() const
 		{
 			return size_;
 		}
 
-		inline [[nodiscard]] bool empty()
+		inline [[nodiscard]] bool empty() const
 		{
 			return size() == 0;
 		}
 
-		inline [[nodiscard]] size_t capacity()
+		inline [[nodiscard]] size_t capacity() const
 		{
 			return capacity_;
 		}
@@ -350,6 +384,11 @@ namespace ktl
 		}
 
 		[[nodiscard]] T* data()
+		{
+			return buffer_;
+		}
+
+		[[nodiscard]] const T* data() const
 		{
 			return buffer_;
 		}

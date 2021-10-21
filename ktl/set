@@ -3,6 +3,7 @@
 #include <ktl_core.h>
 #include <algorithm>
 #include <kernel>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -39,6 +40,25 @@ namespace ktl
 			bucket_(numeric_limits<size_t>::max()),
 			element_(numeric_limits<size_t>::max())
 		{
+		}
+
+		set_iterator(const set_iterator& other) :
+			set_(other.set_),
+			bucket_(other.bucket_),
+			element_(other.element_)
+		{
+			KTL_TRACE_COPY_CONSTRUCTOR;
+		}
+
+		set_iterator& operator=(const set_iterator& other)
+		{
+			KTL_TRACE_COPY_ASSIGNMENT;
+
+			set_ = other.set_;
+			bucket_ = other.bucket_;
+			element_ = other.element_;
+
+			return *this;
 		}
 
 		reference operator*() const
@@ -120,10 +140,38 @@ namespace ktl
 		using iterator = set_iterator<T, Comparer, allocator_type>;
 		friend struct iterator;
 
-		set(size_t capacity = 4)
+		set() = default;
+
+		set(set&& other) :
+			size_(other.size_),
+			table_(move(other.table_))
 		{
-			if (!reserve(capacity))
-				KTL_LOG_ERROR("Failed to reserve initial set storage!\n");
+			other.size_ = 0;
+		}
+
+
+		set(const set&) = delete;
+		set& operator=(const set&) = delete;
+
+		/// <summary>
+		/// Perform an explicit copy of this set.
+		/// </summary>
+		/// <returns>An optional containing the copied set if no errors occurred while copying</returns>
+		optional<set> copy()
+		{
+			set copiedSet;
+
+			if (!copiedSet.reserve(bucket_count()))
+				return {};
+
+			auto e = end();
+			for (auto it = begin(); it != e; ++it)
+			{
+				if (!copiedSet.insert(*it))
+					return {};
+			}
+
+			return optional<set>{ move(copiedSet) };
 		}
 
 		inline [[nodiscard]] size_t size() const

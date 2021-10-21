@@ -152,4 +152,10 @@ namespace ktl
 			return wyhash(&value, sizeof(T), 0, _wyp);
 		}
 	};
+
+	template<size_t Length, size_t Alignment = MEMORY_ALLOCATION_ALIGNMENT>
+	struct aligned_storage
+	{
+		alignas(Alignment) uint8_t storage_[Length];
+	};
 }

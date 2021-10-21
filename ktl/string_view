@@ -48,6 +48,13 @@ namespace ktl
 		{
 		}
 
+		unicode_string_view& operator=(const unicode_string_view& other)
+		{
+			KTL_TRACE_COPY_ASSIGNMENT;
+
+			str_ = other.str_;
+		}
+
 		template<typename string_type>
 		unicode_string_view(const string_type& other) :
 			str_(other.str_)

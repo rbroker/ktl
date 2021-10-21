@@ -2,6 +2,7 @@
 
 #include <ktl_core.h>
 #include <memory>
+#include <optional>
 #include <type_traits>
 
 namespace ktl
@@ -18,6 +19,7 @@ namespace ktl
 		list_element(const T& value) :
 			Value{ value }
 		{
+			KTL_TRACE_COPY_CONSTRUCTOR;
 		}
 
 		list_element(T&& value) :
@@ -30,6 +32,8 @@ namespace ktl
 			Value{ args... }
 		{
 		}
+
+		list_element& operator=(const list_element&) = delete;
 
 		LIST_ENTRY Entry = {};
 		value_type Value;
@@ -51,9 +55,50 @@ namespace ktl
 			InitializeListHead(&head_);
 		}
 
+		list(list&& other) :
+			size_{ other.size_ },
+			a_ { other.a_ }
+		{
+			InitializeListHead(&(head_));
+
+			// Move the entries in other to this newly constructed list.
+			if (!IsListEmpty(&(other.head_)))
+			{
+				auto entry = other.head_.Flink;
+				RemoveEntryList(&(other.head_));
+				InitializeListHead(&(other.head_));
+				AppendTailList(&head_, entry);
+
+				other.size_ = 0;
+			}
+		}
+
 		~list()
 		{
 			clear();
+		}
+
+		// Copy construction & assignment as disabled, in favour of supporting an
+		// explicit "copy" call.
+		list(const list&) = delete;
+		list& operator=(const list&) = delete;
+
+		/// <summary>
+		/// Perform an explicit copy of this list.
+		/// </summary>
+		/// <returns>An optional containing the copied list if no errors occurred while copying</returns>
+		optional<list> copy()
+		{
+			list copiedList;
+
+			auto e = end();
+			for (auto it = begin(); it != e; ++it)
+			{
+				if (!copiedList.push_back(*it))
+					return {};
+			}
+
+			return optional<list>{ move(copiedList) };
 		}
 
 		/// <summary>
@@ -105,7 +150,6 @@ namespace ktl
 			InsertTailList(&head_, &(newElement->Entry));
 
 			++size_;
-
 			return observer_ptr<value_type>{ &newElement->Value };
 		}
 
@@ -263,7 +307,7 @@ namespace ktl
 			curr_ = head_->Flink;
 		}
 
-		list_iterator(PLIST_ENTRY head, PLIST_ENTRY curr) :
+		list_iterator(const PLIST_ENTRY head, const PLIST_ENTRY curr) :
 			head_(head),
 			curr_(curr)
 		{
@@ -278,10 +322,13 @@ namespace ktl
 		list_iterator(const list_iterator& other) :
 			list_iterator(other.head_, other.curr_)
 		{
+			KTL_TRACE_COPY_CONSTRUCTOR;
 		}
 
 		list_iterator& operator=(const list_iterator& other)
 		{
+			KTL_TRACE_COPY_ASSIGNMENT;
+
 			head_ = other.head_;
 			curr_ = other.curr_;
 			return *this;

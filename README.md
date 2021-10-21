@@ -4,7 +4,7 @@ A tiny C++ Template Library for Windows Kernel-Mode. Not fit for production use,
 ## Stub CRT
 In order to ensure proper handling of global C++ data, new, delete, etc. a partial CRT stub is included. Defining `KTL_OMIT_CRT_STUB` in the preprocessor will avoid this, but KTL still depends on a definition for all new/delete methods to be provided, and for `_fltused` to be defined if any floating point operations are in use (e.g. `set`).
 
-`/ignore:4210` should be ignored in the linker operations, as we implement the static initializers & terminators: "warning LNK4210: .CRT section exists; there may be unhandled static initializers or terminators".
+`/ignore:4210` should be ignored in the linker options, as we implement the static initializers & terminators: "warning LNK4210: .CRT section exists; there may be unhandled static initializers or terminators".
 
 The runtime must be manually initialized at the very start of `DriverEntry`, to ensure all global data is correctly initialized:
 
@@ -43,14 +43,15 @@ DriverUnload(
 ## Features
 |Header|Feature|Note|
 |--|--|---|
-| algorithm | `find_if`, `equal_to`, `min`, `max` | |
+| algorithm | `find`, `find_if`, `equal_to`, `min`, `max` | |
 | cstddef | `nullptr_t` | |
 | cstdint | `int8_t` -> `uint64_t` | |
 | kernel | `floating_point_state`, `auto_irp`, `safe_user_buffer`, `object_attributes` | `ktl::floating_point_state` is needed for using [x87 floating point](https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-kesaveextendedprocessorstate).
 | limits | `<T>min`, `<T>max` | For your typical fixed-width integer types in cstdint |
 | list | `list<T>` | Based on kernel [LIST_ENTRY](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-list_entry) |
 | memory | `addressof`, `unique_ptr<T>`, `observer_ptr<T>`, `make_unique<T>`, `paged_pool_allocator`, `nonpaged_pool_allocator`, `paged_lookaside_allocator`, `nonpaged_lookaside_allocator` | |
-| mutex | `scoped_lock`, `mutex` | No deadlock-avoiding lock, based on [FAST_MUTEX](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/eprocess) |
+| mutex | `scoped_lock`, `mutex` | Non deadlock-avoiding lock, based on [FAST_MUTEX](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/eprocess) |
+| optional | `optional<T>` | Partial optional implementation |
 | new | `new`, `delete`, `new[]`, `delete[]`, placement `new` | You must use either placement new, or operator new overloaded with `ktl::pool_type`. All news are non-throwing. |
 | set | `set<T>` | *unordered* set implementation. |
 | shared_mutex | `shared_lock`, `shared_mutex` | reader-writer locking based on [ERESOURCE](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/introduction-to-eresource-routines) |
@@ -73,7 +74,7 @@ ktl-ctl.exe supports the usermode driver controls:
 I've abused the STL header names, but this is not an STL reimplementation, and even the bits that look similar aren't intended to be remotely standards compliant. There's a number of change-points from a typical STL implementation to account for operating in kernel-mode, and without C++ exceptions. Some things possibly worth bearing in mind:
 
 - The `new` header defines an overload of `operator new` which accepts a `ktl::pool_type` parameter. This allows allocations to come from either the paged, or non-paged pools.
-    - Scalar and array versions of `make_unique` also support supporting the pool type.
+    - Scalar and array versions of `make_unique` also support specifying the pool type.
 ```C++
 static ktl::unique_ptr<GlobalState> g_state = ktl::make_unique<GlobalState>(ktl::pool_type::NonPaged);
 static int g_leaky = new (ktl::pool_type::Paged) { 0 };

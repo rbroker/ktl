@@ -48,6 +48,7 @@
     <ClInclude Include="memory" />
     <ClInclude Include="mutex" />
     <ClInclude Include="new" />
+    <ClInclude Include="optional" />
     <ClInclude Include="set" />
     <ClInclude Include="shared_mutex" />
     <ClInclude Include="string" />

@@ -9,7 +9,15 @@
 #endif
 
 /*
- * Causes debug prints to be serialized behind a FAST_MUTEX, to prevent
- * recursive NMI issues on VirtualBox VMs.
+ * Print trace messages on copy-construction of objects.
  */
-#define KTL_TARGET_VM 1
+#if _DEBUG
+#define KTL_TRACE_COPY_CONSTRUCTORS 0
+#endif
+
+/*
+ * Print trace messages on copy-assignment of objects.
+ */
+#if _DEBUG
+#define KTL_TRACE_COPY_ASSIGNMENTS 0
+#endif

@@ -233,7 +233,7 @@ namespace ktl
 		}
 
 	private:
-		LOOKASIDE_LIST_EX lookaside_;
+		alignas(16) LOOKASIDE_LIST_EX lookaside_;
 	};
 
 	template<size_t BLOCK_SIZE>
@@ -307,7 +307,7 @@ namespace ktl
 		}
 
 	private:
-		LOOKASIDE_LIST_EX lookaside_;
+		alignas(16) LOOKASIDE_LIST_EX lookaside_;
 	};
 
 	// Scalar unique_ptr
@@ -494,10 +494,13 @@ namespace ktl
 		observer_ptr(const observer_ptr& other) :
 			p_(other.p_)
 		{
+			KTL_TRACE_COPY_CONSTRUCTOR;
 		}
 
 		observer_ptr& operator=(const observer_ptr& other)
 		{
+			KTL_TRACE_COPY_ASSIGNMENT;
+
 			p_ = other.p_;
 			return *this;
 		}

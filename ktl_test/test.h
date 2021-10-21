@@ -2,6 +2,9 @@
 
 #include "common.h"
 #include <kernel>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #define KTL_TEST(Name, TestBody)												\
 bool KTLTest_##Name(void)														\
@@ -59,4 +62,57 @@ private:
 	LARGE_INTEGER start_;
 	LARGE_INTEGER end_;
 	LARGE_INTEGER frequency_;
+};
+
+struct complex_copyable_object
+{
+	complex_copyable_object() = default;
+	complex_copyable_object(const complex_copyable_object& other) :
+		Name(other.Name),
+		Value(other.Value)
+	{
+	}
+
+	complex_copyable_object(ktl::unicode_string_view name, int value) :
+		Name(name),
+		Value(value)
+	{
+	}
+
+	complex_copyable_object(ktl::unicode_string_view name) :
+		Name(name)
+	{
+	}
+
+	ktl::unicode_string<> Name;
+	int Value = 5;
+	ktl::vector<int> Vec;
+
+private:
+	int NonStandard = -5;
+};
+
+struct complex_object
+{
+	complex_object() = default;
+	complex_object(complex_object&&) = default;
+	complex_object& operator=(complex_object&&) = default;
+
+	complex_object(ktl::unicode_string_view name, int value) :
+		Name(name),
+		Value(value)
+	{
+	}
+
+	complex_object(ktl::unicode_string_view name) :
+		Name(name)
+	{
+	}
+
+	ktl::unicode_string<> Name;
+	int Value = 5;
+	ktl::vector<int> Vec;
+
+private:
+	int NonStandard = -5;
 };

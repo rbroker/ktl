@@ -1,0 +1,108 @@
+#pragma once
+
+#include <memory>
+#include <type_traits>
+
+namespace ktl
+{
+	struct nullopt_t
+	{
+	};
+
+	inline constexpr nullopt_t nullopt{};
+
+	template<class T>
+	struct optional
+	{
+		optional() :
+			value_storage_{}
+		{
+		}
+
+		optional(nullopt_t) :
+			value_storage_{}
+		{
+		}
+
+		optional(T&& v)
+		{
+			emplace(move(v));
+		}
+
+		~optional()
+		{
+			if (!has_value())
+				return;
+
+			auto& v = value();
+			v.~T();
+		}
+
+		optional(const optional&) = delete;
+		optional& operator=(const optional&) = delete;
+
+		optional<T>& operator=(const nullopt_t&)
+		{
+			reset();
+			return *this;
+		}
+
+		/// <summary>
+		/// Construct a new value in this optional. Cannot fail, as construction
+		/// is always in-place.
+		/// </summary>
+		template<class... Args>
+		T& emplace(Args&&... args)
+		{
+			if (has_value())
+			{
+				reset();
+			}
+
+			(void) new (value_storage_.storage_) T(forward<Args>(args)...);
+
+			has_value_ = true;
+
+			return value();
+		}
+
+		[[nodiscard]] operator bool() const
+		{
+			return has_value();
+		}
+
+		[[nodiscard]] bool has_value() const
+		{
+			return has_value_;
+		}
+
+		[[nodiscard]] T& value()
+		{
+			return *(reinterpret_cast<T*>(value_storage_.storage_));
+		}
+
+		void reset()
+		{
+			if (!has_value())
+				return;
+
+			auto& v = value();
+			v.~T();
+			has_value_ = false;
+		}
+
+		T& operator*()
+		{
+			return value();
+		}
+
+		T* operator->()
+		{
+			return &(value());
+		}
+
+	private:
+		bool has_value_ = false;
+		aligned_storage<sizeof(T), alignof(T)> value_storage_;
+	};
+}
