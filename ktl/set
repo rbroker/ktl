@@ -157,7 +157,7 @@ namespace ktl
 		/// Perform an explicit copy of this set.
 		/// </summary>
 		/// <returns>An optional containing the copied set if no errors occurred while copying</returns>
-		optional<set> copy()
+		[[nodiscard]] optional<set> copy()
 		{
 			set copiedSet;
 

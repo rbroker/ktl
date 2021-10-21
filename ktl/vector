@@ -171,7 +171,7 @@ namespace ktl
 		/// Perform an explicit copy of this vector.
 		/// </summary>
 		/// <returns>An optional containing the copied vector if no errors occurred while copying</returns>
-		optional<vector> copy()
+		[[nodiscard]] optional<vector> copy()
 		{
 			vector copiedVector;
 

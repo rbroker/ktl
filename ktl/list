@@ -87,7 +87,7 @@ namespace ktl
 		/// Perform an explicit copy of this list.
 		/// </summary>
 		/// <returns>An optional containing the copied list if no errors occurred while copying</returns>
-		optional<list> copy()
+		[[nodiscard]] optional<list> copy()
 		{
 			list copiedList;
 
