@@ -17,7 +17,7 @@
 #include <ktl_shared.h>
 
 std::wstring DriverName = L"ktl_test.sys";
-std::wstring ServiceName = L"KTL-Test-Driver";
+std::wstring ServiceName = L"KTL Test Driver";
 
 void print_help()
 {
