@@ -17,7 +17,7 @@
 #include <ktl_shared.h>
 
 std::wstring DriverName = L"ktl_test.sys";
-std::wstring ServiceName = KTL_TEST_DEVICE_USERMODE_NAME;
+std::wstring ServiceName = L"KTL-Test-Driver";
 
 void print_help()
 {
@@ -46,7 +46,7 @@ void DriverInstall(const std::wstring& inf_path)
 	ServiceHandle serviceManager = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_ALL_ACCESS);
 	ServiceHandle service = CreateServiceW(&serviceManager,
 		ServiceName.c_str(),
-		L"KTL Test Driver",
+		L"KTL Test Driver Service",
 		SERVICE_ALL_ACCESS,
 		SERVICE_KERNEL_DRIVER,
 		SERVICE_DEMAND_START,

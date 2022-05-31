@@ -153,7 +153,7 @@ namespace ktl
 
 		inline [[nodiscard]] size_t max_size() const
 		{
-			return NTSTRSAFE_UNICODE_STRING_MAX_CCH;
+			return NTSTRSAFE_UNICODE_STRING_MAX_CCH - 1;
 		}
 
 		inline [[nodiscard]] size_t max_byte_size() const
@@ -334,7 +334,7 @@ namespace ktl
 			{
 				size_t newByteCapacity = (newSize) * sizeof(wchar_t);
 
-				auto tmp = reinterpret_cast<wchar_t*>(a_.allocate(sizeof(wchar_t) * newSize));
+				auto tmp = reinterpret_cast<wchar_t*>(a_.allocate(newByteCapacity));
 				if (!tmp)
 				{
 					KTL_LOG_ERROR("Failed to allocate memory for unique_ptr\n");
@@ -343,12 +343,7 @@ namespace ktl
 
 				if (str_.Length > 0)
 				{
-					if (NT_ERROR(RtlStringCbCopyW(tmp, newSize, str_.Buffer)))
-					{
-						KTL_LOG_ERROR("Copying string into temporary buffer failed\n");
-						a_.deallocate(tmp);
-						return false;
-					}
+					::RtlCopyMemory(tmp, str_.Buffer, str_.Length);
 				}
 
 				if (buffer_)

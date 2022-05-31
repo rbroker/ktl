@@ -205,21 +205,27 @@ namespace ktl
 			return;
 		}
 
-		KIRQL oldIrq;
-		KeAcquireSpinLock(at_exit_lock__, &oldIrq);
-
 		while (true)
 		{
+			KIRQL oldIrq;
+			KeAcquireSpinLock(at_exit_lock__, &oldIrq);
+
 			auto head = RemoveHeadList(&at_exit_fn_list__);
 			if (head == &at_exit_fn_list__)
+			{
+				KeReleaseSpinLock(at_exit_lock__, oldIrq);
 				break;
+			}
 
 			auto entry = CONTAINING_RECORD(head, __at_exit_fn_element, Entry);
+
+			KeReleaseSpinLock(at_exit_lock__, oldIrq);
+
+			// Release spinlock before running callbacks, as we want those
+			// to run at PASSIVE_LEVEL, rather than DISPATCH_LEVEL.
 			entry->AtExitCallback();
 			pool_free(entry);
 		}
-
-		KeReleaseSpinLock(at_exit_lock__, oldIrq);
 
 		pool_free(at_exit_lock__);
 		at_exit_lock__ = nullptr;
