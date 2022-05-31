@@ -164,7 +164,7 @@ KtlTestFileIoDeviceControl(
     UNREFERENCED_PARAMETER(OutputBufferLength);
     UNREFERENCED_PARAMETER(InputBufferLength);
 
-    NTSTATUS status;
+    NTSTATUS status = STATUS_SUCCESS;
 
     ktl::wdf_auto_request request{ Request, status };
 
