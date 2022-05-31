@@ -271,7 +271,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="entry.cpp" />
-    <ClCompile Include="test_impl.cpp">
+    <ClCompile Include="test_memory.cpp">
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">/utf-8 %(AdditionalOptions)</AdditionalOptions>
@@ -283,6 +283,7 @@
     </ClCompile>
     <ClCompile Include="test_list.cpp" />
     <ClCompile Include="test_set.cpp" />
+    <ClCompile Include="test_unicode_string.cpp" />
     <ClCompile Include="test_vector.cpp" />
   </ItemGroup>
   <ItemGroup>

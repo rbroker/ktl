@@ -27,7 +27,7 @@
     <ClCompile Include="entry.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="test_impl.cpp">
+    <ClCompile Include="test_memory.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test_set.cpp">
@@ -37,6 +37,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="test_list.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="test_unicode_string.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
