@@ -17,7 +17,7 @@ extern "C"
 
 #define KTL_POOL_TAG 'LTSK'
 
-#define KTL_LOG_MSG(level, fmt, ...) DbgPrintEx(DPFLTR_DEFAULT_ID, level, "[KTL] " __FUNCTION__ ": " fmt, __VA_ARGS__)
+#define KTL_LOG_MSG(level, fmt, ...) DbgPrintEx(DPFLTR_DEFAULT_ID, level, "[KTL] " __FUNCTION__ "(%d): " fmt, __LINE__, __VA_ARGS__)
 
 #define KTL_LOG_ERROR(fmt, ...) KTL_LOG_MSG(DPFLTR_ERROR_LEVEL, fmt, __VA_ARGS__)
 #define KTL_LOG_TRACE(fmt, ...) KTL_LOG_MSG(DPFLTR_TRACE_LEVEL, fmt, __VA_ARGS__)
@@ -33,7 +33,7 @@ extern "C"
 #endif
 
 #if KTL_TRACE_COPY_ASSIGNMENTS
-#define KTL_TRACE_COPY_ASSIGNMENT	KTL_LOG_TRACE("copy copy assigning\n");
+#define KTL_TRACE_COPY_ASSIGNMENT	KTL_LOG_TRACE("copy assigning\n");
 #else
 #define KTL_TRACE_COPY_ASSIGNMENT
 #endif

@@ -12,7 +12,7 @@ extern "C"
 
 #include <ktl_core.h>
 
-#define LOG_MSG(level, fmt, ...) DbgPrintEx(DPFLTR_DEFAULT_ID, level, "[KTLTEST] " __FUNCTION__ ": " fmt, __VA_ARGS__)
+#define LOG_MSG(level, fmt, ...) DbgPrintEx(DPFLTR_DEFAULT_ID, level, "[KTLTEST] " __FUNCTION__ "(%d): " fmt, __LINE__, __VA_ARGS__)
 
 #define LOG_ERROR(fmt, ...) LOG_MSG(DPFLTR_ERROR_LEVEL, fmt, __VA_ARGS__)
 #define LOG_WARNING(fmt, ...) LOG_MSG(DPFLTR_WARNING_LEVEL, fmt, __VA_ARGS__)
