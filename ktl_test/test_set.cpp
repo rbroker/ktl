@@ -43,7 +43,7 @@ bool test_set_of_string()
 	// find
 	{
 		auto it = stringSet.find(ktl::unicode_string_view{ L"$" });
-		ASSERT_TRUE(it != stringSet.end(), "unable to find expected entry in set");
+		ASSERT_TRUE(it != ktl::end(stringSet), "unable to find expected entry in set");
 		ASSERT_TRUE(*it == L"$", "found entry didn't contain expected value: %wZ", it->data());
 	}
 

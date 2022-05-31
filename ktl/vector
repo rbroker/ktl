@@ -441,4 +441,16 @@ namespace ktl
 
 	template<typename T>
 	using nonpaged_vector = vector<T, nonpaged_pool_allocator>;
+
+	template<class T>
+	vector_iterator<T> begin(vector<T>& v)
+	{
+		return v.begin();
+	}
+
+	template<class T>
+	vector_iterator<T> end(vector<T>& v)
+	{
+		return v.end();
+	}
 }

@@ -136,11 +136,11 @@ bool test_vector()
 		}
 
 		ASSERT_TRUE(vec.size() == 4, "unexpected size after erase: %llu", vec.size());
-		ASSERT_TRUE(ktl::find_if(vec.begin(), vec.end(), [](auto e) -> bool { return e == 0; }) == vec.end(), "found erased element");
+		ASSERT_TRUE(ktl::find_if(ktl::begin(vec), ktl::end(vec), [](auto e) -> bool { return e == 0; }) == ktl::end(vec), "found erased element");
 		ASSERT_TRUE(ktl::find_if(vec.begin(), vec.end(), [](auto e) -> bool { return e == 1; }) != vec.end(), "didn't find expected element (1)");
-		ASSERT_TRUE(ktl::find_if(vec.begin(), vec.end(), [](auto e) -> bool { return e == 2; }) != vec.end(), "didn't find expected element (2)");
+		ASSERT_TRUE(ktl::find_if(vec.begin(), vec.end(), [](auto e) -> bool { return e == 2; }) != ktl::end(vec), "didn't find expected element (2)");
 		ASSERT_TRUE(ktl::find_if(vec.begin(), vec.end(), [](auto e) -> bool { return e == 3; }) != vec.end(), "didn't find expected element (3)");
-		ASSERT_TRUE(ktl::find_if(vec.begin(), vec.end(), [](auto e) -> bool { return e == 4; }) != vec.end(), "didn't find expected element (4)");
+		ASSERT_TRUE(ktl::find_if(vec.begin(), vec.end(), [](auto e) -> bool { return e == 4; }) != ktl::end(vec), "didn't find expected element (4)");
 
 		// erase back
 		for (auto it = vec.begin(); it != vec.end(); )

@@ -451,4 +451,16 @@ namespace ktl
 		allocator_type a_;
 		vector<vector<T, allocator_type>, allocator_type> table_;
 	};
+
+	template<class T, class Comparer = equal_to<T>, class allocator_type = paged_pool_allocator>
+	set_iterator<T, Comparer, allocator_type> begin(set<T, Comparer, allocator_type>& s)
+	{
+		return set.begin();
+	}
+
+	template<class T, class Comparer = equal_to<T>, class allocator_type = paged_pool_allocator>
+	set_iterator<T, Comparer, allocator_type> end(set<T, Comparer, allocator_type>& s)
+	{
+		return s.end();
+	}
 }

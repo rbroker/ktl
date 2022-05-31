@@ -7,6 +7,122 @@
 
 namespace ktl
 {
+	template<typename element_type>
+	struct list_iterator
+	{
+		using value_type = typename element_type::value_type;
+		using reference = value_type&;
+		using pointer = value_type*;
+
+		template<typename value_type, typename allocator_type>
+		friend struct list;
+
+		list_iterator(const PLIST_ENTRY head) :
+			head_(head)
+		{
+			curr_ = head_->Flink;
+		}
+
+		list_iterator(const PLIST_ENTRY head, const PLIST_ENTRY curr) :
+			head_(head),
+			curr_(curr)
+		{
+		}
+
+		list_iterator() :
+			head_(nullptr),
+			curr_(nullptr)
+		{
+		}
+
+		list_iterator(const list_iterator& other) :
+			list_iterator(other.head_, other.curr_)
+		{
+			KTL_TRACE_COPY_CONSTRUCTOR;
+		}
+
+		list_iterator& operator=(const list_iterator& other)
+		{
+			KTL_TRACE_COPY_ASSIGNMENT;
+
+			head_ = other.head_;
+			curr_ = other.curr_;
+			return *this;
+		}
+
+		[[nodiscard]] reference operator*() const
+		{
+			element_type* ptr = (CONTAINING_RECORD(curr_, element_type, Entry));
+			return ptr->Value;
+		}
+
+		[[nodiscard]] pointer operator->() const
+		{
+			element_type* ptr = (CONTAINING_RECORD(curr_, element_type, Entry));
+			return addressof(ptr->Value);
+		}
+
+		list_iterator& operator++()
+		{
+			auto next = curr_->Flink;
+
+			if (next == head_) // End of list.
+			{
+				curr_ = nullptr;
+			}
+			else
+			{
+				curr_ = next;
+			}
+
+			return *this;
+		}
+
+		list_iterator operator++(int)
+		{
+			list_iterator tmp = *this;
+			++(*this);
+			return tmp;
+		}
+
+		list_iterator& operator--()
+		{
+			auto prev = curr_->Blink;
+
+			if (prev == head_)
+			{
+				curr_ = nullptr;
+			}
+			else
+			{
+				curr_ = prev;
+			}
+
+			return *this;
+		}
+
+		list_iterator operator--(int)
+		{
+			list_iterator tmp = *this;
+			--(*this);
+			return tmp;
+		}
+
+		[[nodiscard]] bool operator==(const list_iterator& other) const
+		{
+			return curr_ == other.curr_;
+		}
+
+		[[nodiscard]] bool operator!=(const list_iterator& other) const
+		{
+			return !(*this == other);
+		}
+
+	private:
+		PLIST_ENTRY head_;
+		PLIST_ENTRY curr_;
+	};
+
 	template<typename T>
 	struct list_element
 	{
@@ -291,122 +407,6 @@ namespace ktl
 		allocator_type& a_;
 	};
 
-	template<typename element_type>
-	struct list_iterator
-	{
-		using value_type = typename element_type::value_type;
-		using reference = value_type&;
-		using pointer = value_type*;
-
-		template<typename value_type, typename allocator_type>
-		friend struct list;
-
-		list_iterator(const PLIST_ENTRY head) :
-			head_(head)
-		{
-			curr_ = head_->Flink;
-		}
-
-		list_iterator(const PLIST_ENTRY head, const PLIST_ENTRY curr) :
-			head_(head),
-			curr_(curr)
-		{
-		}
-
-		list_iterator() :
-			head_(nullptr),
-			curr_(nullptr)
-		{
-		}
-
-		list_iterator(const list_iterator& other) :
-			list_iterator(other.head_, other.curr_)
-		{
-			KTL_TRACE_COPY_CONSTRUCTOR;
-		}
-
-		list_iterator& operator=(const list_iterator& other)
-		{
-			KTL_TRACE_COPY_ASSIGNMENT;
-
-			head_ = other.head_;
-			curr_ = other.curr_;
-			return *this;
-		}
-
-		[[nodiscard]] reference operator*() const
-		{
-			element_type* ptr = (CONTAINING_RECORD(curr_, element_type, Entry));
-			return ptr->Value;
-		}
-
-		[[nodiscard]] pointer operator->() const
-		{
-			element_type* ptr = (CONTAINING_RECORD(curr_, element_type, Entry));
-			return addressof(ptr->Value);
-		}
-
-		list_iterator& operator++()
-		{
-			auto next = curr_->Flink;
-
-			if (next == head_) // End of list.
-			{
-				curr_ = nullptr;
-			}
-			else
-			{
-				curr_ = next;
-			}
-
-			return *this;
-		}
-
-		list_iterator operator++(int)
-		{
-			list_iterator tmp = *this;
-			++(*this);
-			return tmp;
-		}
-
-		list_iterator& operator--()
-		{
-			auto prev = curr_->Blink;
-
-			if (prev == head_)
-			{
-				curr_ = nullptr;
-			}
-			else
-			{
-				curr_ = prev;
-			}
-
-			return *this;
-		}
-
-		list_iterator operator--(int)
-		{
-			list_iterator tmp = *this;
-			--(*this);
-			return tmp;
-		}
-
-		[[nodiscard]] bool operator==(const list_iterator& other) const
-		{
-			return curr_ == other.curr_;
-		}
-
-		[[nodiscard]] bool operator!=(const list_iterator& other) const
-		{
-			return !(*this == other);
-		}
-
-	private:
-		PLIST_ENTRY head_;
-		PLIST_ENTRY curr_;
-	};
-
 	// Define list variants with different allocators.
 	template<typename T>
 	using paged_list = list<T, paged_pool_allocator>;
@@ -419,4 +419,16 @@ namespace ktl
 
 	template<typename T>
 	using nonpaged_lookaside_list = list<T, nonpaged_lookaside_allocator<sizeof(list_element<T>)>>;
+
+	template<class T>
+	list_iterator<list_element<T>> begin(list<T>& l)
+	{
+		return l.begin();
+	}
+
+	template<class T>
+	list_iterator<list_element<T>> end(list<T>& l)
+	{
+		return l.end();
+	}
 }

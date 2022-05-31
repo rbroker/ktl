@@ -65,7 +65,7 @@ bool test_list()
 				it = int_list.erase(it);
 			}
 
-			ASSERT_TRUE(ktl::find_if(int_list.begin(), int_list.end(), [](auto& v) { return v == 250; }) == int_list.end(), "found erased element in list: 250");
+			ASSERT_TRUE(ktl::find_if(ktl::begin(int_list), ktl::end(int_list), [](auto& v) { return v == 250; }) == int_list.end(), "found erased element in list: 250");
 			ASSERT_TRUE(ktl::find_if(int_list.begin(), int_list.end(), [](auto& v) { return v == 498; }) == int_list.end(), "found erased element in list: 499");
 			ASSERT_FALSE(ktl::find_if(int_list.begin(), int_list.end(), [](auto& v) { return v == 251; }) == int_list.end(), "did not find expected element in list: 251");
 			ASSERT_FALSE(ktl::find_if(int_list.begin(), int_list.end(), [](auto& v) { return v == 249; }) == int_list.end(), "did not find expected element in list: 249");
