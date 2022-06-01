@@ -42,6 +42,9 @@
     <ClCompile Include="test_unicode_string.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="test_tuple.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ktl_test.h">

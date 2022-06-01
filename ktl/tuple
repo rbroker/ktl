@@ -1,0 +1,84 @@
+#include <type_traits>
+
+namespace ktl
+{
+	// ref. https://medium.com/@mortificador/implementing-std-tuple-in-c-17-3cc5c6da7277
+
+	template<size_t index, typename T>
+	struct _tuple_wrapper
+	{
+		_tuple_wrapper(const T& t)
+			: type_(t)
+		{
+		}
+
+		_tuple_wrapper(T&& t)
+			: type_(move(t))
+		{
+		}
+
+		const T& get() const
+		{
+			return type_;
+		}
+
+		T& get()
+		{
+			return type_;
+		}
+
+	protected:
+		[[no_unique_address]] T type_;
+	};
+
+	template<size_t index, typename... tuple_types>
+	struct _tuple_impl
+	{
+	};
+
+	template<size_t index, typename T, typename... tuple_types>
+	struct _tuple_impl<index, T, tuple_types...> :
+		public _tuple_wrapper<index, remove_reference_t<T>>,
+		public _tuple_impl<index + 1, tuple_types...>
+	{
+		template<typename ctor_type, typename... ctor_args>
+		_tuple_impl(ctor_type&& t, ctor_args&&... args) :
+			_tuple_wrapper<index, remove_reference_t<ctor_type>>(forward<ctor_type>(t)),
+			_tuple_impl<index + 1, tuple_types...>(forward<ctor_args>(args)...)
+		{
+		}
+	};
+
+	template<size_t index, typename T, typename... tuple_types>
+	struct _tuple_extract
+	{
+		using type = typename _tuple_extract<index - 1, tuple_types...>::type;
+	};
+
+	template<typename T, typename... tuple_types>
+	struct _tuple_extract<0, T, tuple_types...>
+	{
+		using type = T;
+	};
+
+	template<int index, typename T, typename... tuple_types>
+	using _tuple_extract_t = typename _tuple_extract<index, T, tuple_types...>::type;
+
+	template<typename T, typename... tuple_types>
+	struct tuple : public _tuple_impl<0, T, tuple_types...>
+	{
+		template<typename... ctor_args>
+		tuple(ctor_args&&... args) : _tuple_impl<0, T, tuple_types...>(forward<ctor_args>(args)...)
+		{
+		}
+	};
+
+	template<size_t index, typename... tuple_types>
+	auto& get(tuple<tuple_types...>& t)
+	{
+		return (reinterpret_cast<_tuple_impl<index, _tuple_extract_t<index, tuple_types...>>&>(t)).get();
+	}
+
+	template<typename... ctor_args>
+	tuple(ctor_args... args)->tuple<ctor_args...>;
+}
