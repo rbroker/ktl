@@ -71,6 +71,9 @@ namespace ktl
 		{
 		}
 
+		// Don't allow implicit conversion from string literal to unicode_string,
+		// *probably* want a unicode_string_view in this case. If you want the memory
+		// allocation, best to be explicit and opt-in.
 		explicit unicode_string(const wchar_t* str, size_t length = npos) :
 			unicode_string(unicode_string_view{ str, length })
 		{
