@@ -203,6 +203,10 @@ KtlTestFileIoDeviceControl(
         if (!test_unicode_string_view())
             status = STATUS_FAIL_CHECK;
         break;
+    case IOCTL_KTLTEST_METHOD_TUPLE_TEST:
+        if (!test_tuple())
+            status = STATUS_FAIL_CHECK;
+        break;
     default:
         break;
     }

@@ -173,6 +173,9 @@ void DriverTest(const std::wstring_view mode = L"all")
 
 		if (mode == L"all" || mode == L"unicode_string_view")
 			std::jthread stringViewTestThr(RunTest, IOCTL_KTLTEST_METHOD_STRING_VIEW_TEST, &errors, &mtx, "<unicode_string_view>");
+
+		if (mode == L"all" || mode == L"tuple")
+			std::jthread tupleTestThr(RunTest, IOCTL_KTLTEST_METHOD_TUPLE_TEST, &errors, &mtx, "<tuple>");
 	}
 
 	for (const auto& err : errors)
@@ -251,6 +254,9 @@ int wmain(int argc, wchar_t** argv)
 		try { DriverStop(); } catch(...) {}
 		return -1;
 	}
+
+	std::tuple<int, int> f;
+	std::get<0>(std::move(f));
 
 	return 0;
 }
