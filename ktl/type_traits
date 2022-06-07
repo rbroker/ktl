@@ -26,6 +26,21 @@ namespace ktl
 	template<class T>
 	using remove_reference_t = typename remove_reference<T>::type;
 
+	template<class T>
+	struct remove_const
+	{
+		using type = T;
+	};
+
+	template<class T>
+	struct remove_const<const T>
+	{
+		using type = T;
+	};
+
+	template<class T>
+	using remove_const_t = typename remove_const<T>::type;
+
 	// ktl::move
 	template<class T>
 	[[nodiscard]] constexpr remove_reference_t<T>&& move(T&& arg)
@@ -123,6 +138,15 @@ namespace ktl
 
 	template<class T>
 	using remove_extent_t = typename remove_extent<T>::type;
+
+	template<class T>
+	struct add_const
+	{
+		using type = const T;
+	};
+
+	template<class T>
+	using add_const_t = typename add_const<T>::type;
 
 	// ktl::is_trivially_copyable_v
 	template<class T>

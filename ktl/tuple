@@ -30,21 +30,6 @@ namespace std
 	template<typename... tuple_types>
 	inline constexpr size_t tuple_size_v = tuple_size<tuple_types...>::value;
 
-	template<size_t index, typename T, typename... tuple_types>
-	struct _tuple_element_at
-	{
-		using type = typename _tuple_element_at<index - 1, tuple_types...>::type;
-	};
-
-	template<typename T, typename... tuple_types>
-	struct _tuple_element_at<0, T, tuple_types...>
-	{
-		using type = T;
-	};
-
-	template<int index, typename T, typename... tuple_types>
-	using _tuple_element_at_t = typename _tuple_element_at<index, T, tuple_types...>::type;
-
 	template<size_t index, class T>
 	struct tuple_element;
 
@@ -54,40 +39,83 @@ namespace std
 	{
 	};
 
+	template<size_t index, class T, class... tuple_types>
+	struct tuple_element<index, const ktl::tuple<T, tuple_types...>>
+		: tuple_element<index - 1, const ktl::tuple<tuple_types...>>
+	{
+	};
+
 	template<class T, class... tuple_types>
-	struct tuple_element<0, ktl::tuple<T, tuple_types...>> {
+	struct tuple_element<0, const ktl::tuple<T, tuple_types...>>
+	{
+		using type = ktl::add_const_t<T>;
+	};
+
+	template<class T, class... tuple_types>
+	struct tuple_element<0, ktl::tuple<T, tuple_types...>>
+	{
 		using type = T;
 	};
 
-	template<size_t index, typename... tuple_types>
-	auto& get(ktl::tuple<tuple_types...>& t)
-	{
-		using element_type = _tuple_element_at_t<index, tuple_types...>;
-		using impl_type = ktl::_tuple_impl<index, element_type>;
-		return reinterpret_cast<element_type&>((reinterpret_cast<impl_type&>(t)).type_);
-	}
-
-	template<size_t index, typename... tuple_types>
-	const auto& get(const ktl::tuple<tuple_types...>& t)
-	{
-		using element_type = _tuple_element_at_t<index, tuple_types...>;
-		using impl_type = ktl::_tuple_impl<index, element_type>;
-		return reinterpret_cast<const element_type&>((reinterpret_cast<impl_type&>(t)).type_);
-	}
-
-	template<size_t index, typename... tuple_types>
-	auto&& get(ktl::tuple<tuple_types...>&& t)
-	{
-		using element_type = _tuple_element_at_t<index, tuple_types...>;
-		using impl_type = ktl::_tuple_impl<index, element_type>;
-		return ktl::move((reinterpret_cast<impl_type&>(t)).type_);
-	}
+	template<size_t index, typename T>
+	using tuple_element_t = typename tuple_element<index, T>::type;
 }
 
 namespace ktl
 {
 	// ref. https://medium.com/@mortificador/implementing-std-tuple-in-c-17-3cc5c6da7277
 
+	// Redefine aliases in ktl namespace
+	template<typename... tuple_types>
+	using tuple_size = std::tuple_size<tuple_types...>;
+
+	template<typename... tuple_types>
+	inline constexpr size_t tuple_size_v = std::tuple_size_v<tuple_types...>;
+
+	template<size_t index, typename T>
+	using tuple_element = std::tuple_element<index, T>;
+
+	template<size_t index, typename T>
+	using tuple_element_t = typename tuple_element<index, T>::type;
+
+	// Define get<> methods.
+	template<size_t index, typename T>
+	struct _tuple_wrapper;
+
+	template<size_t index, typename... tuple_types>
+	auto& get(tuple<tuple_types...>& t)
+	{
+		static_assert(index < tuple_size_v<tuple<tuple_types...>>, "Index was out of range for the given tuple!");
+
+		using element_type = tuple_element_t<index, tuple<tuple_types...>>;
+		using impl_type = _tuple_wrapper<index, element_type>;
+
+		return static_cast<impl_type&>(t).type_;
+	}
+
+	template<size_t index, typename... tuple_types>
+	const auto& get(const tuple<tuple_types...>& t)
+	{
+		static_assert(index < tuple_size_v<tuple<tuple_types...>>, "Index was out of range for the given tuple!");
+
+		using element_type = tuple_element_t<index, tuple<tuple_types...>>;
+		using impl_type = _tuple_wrapper<index, element_type>;
+
+		return static_cast<const impl_type&>(t).type_;
+	}
+
+	template<size_t index, typename... tuple_types>
+	auto&& get(tuple<tuple_types...>&& t)
+	{
+		static_assert(index < tuple_size_v<tuple<tuple_types...>>, "Index was out of range for the given tuple!");
+
+		using element_type = tuple_element_t<index, tuple<tuple_types...>>;
+		using impl_type = _tuple_wrapper<index, element_type>;
+
+		return static_cast<impl_type&>(t).type_;
+	}
+
+	// Tuple implementation
 	template<size_t index, typename T>
 	struct _tuple_wrapper
 	{
@@ -120,6 +148,27 @@ namespace ktl
 		public _tuple_wrapper<index, remove_reference_t<T>>,
 		public _tuple_impl<index + 1, tuple_types...>
 	{
+		template<typename... ctor_types>
+		_tuple_impl(tuple<ctor_types...>& t) :
+			_tuple_wrapper<index, remove_reference_t<T>>(get<index>(t)),
+			_tuple_impl<index + 1, tuple_types...>(t)
+		{
+		}
+
+		template<typename... ctor_types>
+		_tuple_impl(tuple<ctor_types...>&& t) :
+			_tuple_wrapper<index, remove_reference_t<T>>(move(get<index>(t))),
+			_tuple_impl<index + 1, tuple_types...>(t)
+		{
+		}
+
+		template<typename ctor_type, typename... ctor_args>
+		_tuple_impl(const ctor_type& t, ctor_args&&... args) :
+			_tuple_wrapper<index, remove_reference_t<ctor_type>>(t),
+			_tuple_impl<index + 1, tuple_types...>(forward<ctor_args>(args)...)
+		{
+		}
+
 		template<typename ctor_type, typename... ctor_args>
 		_tuple_impl(ctor_type&& t, ctor_args&&... args) :
 			_tuple_wrapper<index, remove_reference_t<ctor_type>>(forward<ctor_type>(t)),
@@ -128,20 +177,16 @@ namespace ktl
 		}
 	};
 
-	// Redefine aliases in ktl namespace
-	template<typename... tuple_types>
-	using tuple_size = std::tuple_size<tuple_types...>;
-
-	template<typename... tuple_types>
-	inline constexpr size_t tuple_size_v = std::tuple_size_v<tuple_types...>;
-
-
-
 	template<typename T, typename... tuple_types>
 	struct tuple : public _tuple_impl<0, T, tuple_types...>
 	{
-		tuple(const tuple&) = default;
-		tuple(tuple&&) = default;
+		tuple(tuple& t) : _tuple_impl<0, T, tuple_types...>(t)
+		{
+		}
+
+		tuple(tuple&& t) : _tuple_impl<0, T, tuple_types...>(t)
+		{
+		}
 
 		template<typename... ctor_args>
 		tuple(ctor_args&&... args) : _tuple_impl<0, T, tuple_types...>(forward<ctor_args>(args)...)
