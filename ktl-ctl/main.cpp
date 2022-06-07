@@ -255,8 +255,5 @@ int wmain(int argc, wchar_t** argv)
 		return -1;
 	}
 
-	std::tuple<int, int> f;
-	std::get<0>(std::move(f));
-
 	return 0;
 }
