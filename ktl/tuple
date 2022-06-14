@@ -162,7 +162,7 @@ namespace ktl
 
 		template<typename ctor_type, typename... ctor_args>
 		_tuple_impl(ctor_type&& t, ctor_args&&... args) :
-			_tuple_wrapper<index, remove_const_t<remove_reference_t<ctor_type>>>(forward<ctor_type>(t)),
+			_tuple_wrapper<index, remove_reference_t<T>>(forward<ctor_type>(t)),
 			_tuple_impl<index + 1, tuple_types...>(forward<ctor_args>(args)...)
 		{
 		}
