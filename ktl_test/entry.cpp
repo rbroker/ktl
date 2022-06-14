@@ -207,6 +207,10 @@ KtlTestFileIoDeviceControl(
         if (!test_tuple())
             status = STATUS_FAIL_CHECK;
         break;
+    case IOCTL_KTLTEST_METHOD_OPTIONAL_TEST:
+        if (!test_optional())
+            status = STATUS_FAIL_CHECK;
+        break;
     default:
         break;
     }

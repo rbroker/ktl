@@ -282,6 +282,7 @@
       <AdditionalOptions Condition="'$(Configuration)|$(Platform)'=='Release|x64'">/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <ClCompile Include="test_list.cpp" />
+    <ClCompile Include="test_optional.cpp" />
     <ClCompile Include="test_set.cpp" />
     <ClCompile Include="test_tuple.cpp" />
     <ClCompile Include="test_unicode_string.cpp" />

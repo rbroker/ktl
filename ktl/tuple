@@ -9,7 +9,7 @@ namespace ktl
 	struct _tuple_impl;
 }
 
-// We need to define these in the std namespace for structure binding support.
+// We need to define these in the std namespace for structured binding support.
 // Later in this file, we create some aliases to these, so we can avoid polluting
 // "ktl" code with "std" references.
 namespace std

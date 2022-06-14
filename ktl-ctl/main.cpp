@@ -176,6 +176,9 @@ void DriverTest(const std::wstring_view mode = L"all")
 
 		if (mode == L"all" || mode == L"tuple")
 			std::jthread tupleTestThr(RunTest, IOCTL_KTLTEST_METHOD_TUPLE_TEST, &errors, &mtx, "<tuple>");
+
+		if (mode == L"all" || mode == L"optional")
+			std::jthread tupleTestThr(RunTest, IOCTL_KTLTEST_METHOD_OPTIONAL_TEST, &errors, &mtx, "<optional>");
 	}
 
 	for (const auto& err : errors)
