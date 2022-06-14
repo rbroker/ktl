@@ -60,9 +60,8 @@ bool test_tuple()
 		ktl::tuple<ktl::unicode_string<>, ktl::unicode_string<>> string_string_pair{ foo_str, ktl::move(bar_str) };
 		const auto& [h, i] = string_string_pair;
 		ASSERT_TRUE(h == foo_str, "Unexpected structured binding output for first element (%wZ != %wZ)", h.data(), foo_str.data());
-		ASSERT_TRUE(i == L"bar", "Unexpected structured binding output for second element (%wZ != %wZ)", i.data(), foo_str.data());
-
-
+		ASSERT_TRUE(i == L"bar", "Unexpected structured binding output for second element (%wZ != %wZ)", i.data(), L"bar");
+		ASSERT_TRUE(bar_str.size() == 0, "Unexpected string size after move construction! (%llu != %llu)", bar_str.size(), 0ULL);
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{

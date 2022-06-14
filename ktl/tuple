@@ -119,14 +119,12 @@ namespace ktl
 	template<size_t index, typename T>
 	struct _tuple_wrapper
 	{
+		_tuple_wrapper() = default;
+		_tuple_wrapper(const _tuple_wrapper&) = default;
+		_tuple_wrapper(_tuple_wrapper&&) = default;
+
 		_tuple_wrapper(const T& t)
 			: type_(t)
-		{
-		}
-
-		template<typename... ctor_args>
-		_tuple_wrapper(ctor_args&&... args)
-			: type_(forward<T>(args...))
 		{
 		}
 
@@ -163,15 +161,8 @@ namespace ktl
 		}
 
 		template<typename ctor_type, typename... ctor_args>
-		_tuple_impl(const ctor_type& t, ctor_args&&... args) :
-			_tuple_wrapper<index, remove_reference_t<ctor_type>>(t),
-			_tuple_impl<index + 1, tuple_types...>(forward<ctor_args>(args)...)
-		{
-		}
-
-		template<typename ctor_type, typename... ctor_args>
 		_tuple_impl(ctor_type&& t, ctor_args&&... args) :
-			_tuple_wrapper<index, remove_reference_t<ctor_type>>(forward<ctor_type>(t)),
+			_tuple_wrapper<index, remove_const_t<remove_reference_t<ctor_type>>>(forward<ctor_type>(t)),
 			_tuple_impl<index + 1, tuple_types...>(forward<ctor_args>(args)...)
 		{
 		}
@@ -184,7 +175,7 @@ namespace ktl
 		{
 		}
 
-		tuple(tuple&& t) : _tuple_impl<0, T, tuple_types...>(t)
+		tuple(tuple&& t) : _tuple_impl<0, T, tuple_types...>(move(t))
 		{
 		}
 
