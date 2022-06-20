@@ -9,7 +9,7 @@ using namespace ktl;
 
 bool test_set_of_string()
 {
-	ktl::set<ktl::unicode_string<>> stringSet;
+	ktl::unordered_set<ktl::unicode_string<>> stringSet;
 
 	// insert & grow
 	ASSERT_TRUE(stringSet.insert(ktl::unicode_string_view{ L"foo" }), "failed to insert string into set");
@@ -85,7 +85,7 @@ bool test_set_performance()
 	// Validate that lookup performance of set is superior to vector.
 	const int END_ELEMENT = 250000;
 	const int FIND_VALUE = END_ELEMENT / 2;
-	ktl::set<int> intSet;
+	ktl::unordered_set<int> intSet;
 	ktl::vector<int> intVector;
 
 	ASSERT_TRUE(intSet.reserve(END_ELEMENT), "failed to reserve set capacity");
@@ -126,7 +126,7 @@ bool test_set_performance()
 
 bool test_set_copy()
 {
-	ktl::set<int> originalSet;
+	ktl::unordered_set<int> originalSet;
 
 	for (int i = 0; i < 5; ++i)
 		ASSERT_TRUE(originalSet.insert(i), "failed to insert integer to set: %d", i);
@@ -164,6 +164,6 @@ bool test_set()
 		return false;
 	}
 
-	LOG_TRACE("[OK] ktl::set!\n");
+	LOG_TRACE("[OK] ktl::unordered_set!\n");
 	return true;
 }

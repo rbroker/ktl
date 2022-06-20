@@ -10,7 +10,7 @@
 namespace ktl
 {
 	template<class T, class Comparer, class allocator_type>
-	struct set;
+	struct unordered_set;
 
 	template<class T, class Comparer, class allocator_type>
 	struct set_iterator
@@ -19,8 +19,8 @@ namespace ktl
 		using reference = value_type&;
 		using pointer = value_type*;
 
-		set_iterator(observer_ptr<set<T, Comparer, allocator_type>> set) :
-			set_(set),
+		set_iterator(observer_ptr<unordered_set<T, Comparer, allocator_type>> unordered_set) :
+			set_(unordered_set),
 			bucket_(0),
 			element_(0)
 		{
@@ -28,8 +28,8 @@ namespace ktl
 				next_bucket();
 		}
 
-		set_iterator(observer_ptr<set<T, Comparer, allocator_type>> set, size_t bucket, size_t element) :
-			set_(set),
+		set_iterator(observer_ptr<unordered_set<T, Comparer, allocator_type>> unordered_set, size_t bucket, size_t element) :
+			set_(unordered_set),
 			bucket_(bucket),
 			element_(element)
 		{
@@ -127,22 +127,22 @@ namespace ktl
 		}
 
 	private:
-		observer_ptr<set<T, Comparer, allocator_type>> set_;
+		observer_ptr<unordered_set<T, Comparer, allocator_type>> set_;
 		size_t bucket_;
 		size_t element_;
 	};
 
 	template<class T, class Comparer = equal_to<T>, class allocator_type = paged_pool_allocator>
-	struct set
+	struct unordered_set
 	{
-		static_assert(is_base_of_v<generic_allocator, allocator_type>, "ktl::set requires allocator capable of arbitrary size allocations");
+		static_assert(is_base_of_v<generic_allocator, allocator_type>, "ktl::unordered_set requires allocator capable of arbitrary size allocations");
 
 		using iterator = set_iterator<T, Comparer, allocator_type>;
 		friend struct iterator;
 
-		set() = default;
+		unordered_set() = default;
 
-		set(set&& other) :
+		unordered_set(unordered_set&& other) :
 			size_(other.size_),
 			table_(move(other.table_))
 		{
@@ -150,16 +150,16 @@ namespace ktl
 		}
 
 
-		set(const set&) = delete;
-		set& operator=(const set&) = delete;
+		unordered_set(const unordered_set&) = delete;
+		unordered_set& operator=(const unordered_set&) = delete;
 
 		/// <summary>
 		/// Perform an explicit copy of this set.
 		/// </summary>
 		/// <returns>An optional containing the copied set if no errors occurred while copying</returns>
-		[[nodiscard]] optional<set> copy()
+		[[nodiscard]] optional<unordered_set> copy()
 		{
-			set copiedSet;
+			unordered_set copiedSet;
 
 			if (!copiedSet.reserve(bucket_count()))
 				return {};
@@ -171,7 +171,7 @@ namespace ktl
 					return {};
 			}
 
-			return optional<set>{ move(copiedSet) };
+			return optional<unordered_set>{ move(copiedSet) };
 		}
 
 		inline [[nodiscard]] size_t size() const
@@ -453,13 +453,13 @@ namespace ktl
 	};
 
 	template<class T, class Comparer = equal_to<T>, class allocator_type = paged_pool_allocator>
-	set_iterator<T, Comparer, allocator_type> begin(set<T, Comparer, allocator_type>& s)
+	set_iterator<T, Comparer, allocator_type> begin(unordered_set<T, Comparer, allocator_type>& s)
 	{
-		return set.begin();
+		return unordered_set.begin();
 	}
 
 	template<class T, class Comparer = equal_to<T>, class allocator_type = paged_pool_allocator>
-	set_iterator<T, Comparer, allocator_type> end(set<T, Comparer, allocator_type>& s)
+	set_iterator<T, Comparer, allocator_type> end(unordered_set<T, Comparer, allocator_type>& s)
 	{
 		return s.end();
 	}

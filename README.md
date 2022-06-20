@@ -53,10 +53,11 @@ DriverUnload(
 | mutex | `scoped_lock`, `mutex` | Non deadlock-avoiding lock, based on [FAST_MUTEX](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/eprocess) |
 | optional | `optional<T>` | Partial optional implementation |
 | new | `new`, `delete`, `new[]`, `delete[]`, placement `new` | You must use either placement new, or operator new overloaded with `ktl::pool_type`. All news are non-throwing. |
-| set | `set<T>` | *unordered* set implementation. |
+| set | `unordered_set<T>` | set implementation. |
 | shared_mutex | `shared_lock`, `shared_mutex` | reader-writer locking based on [ERESOURCE](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/introduction-to-eresource-routines) |
 | string | `unicode_string` | No `string` or `wstring`, everything is UTF-16 [UNICODE_STRING](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-_unicode_string). |
 | string_view | `unicode_string_view` | For the performance-conscious [UNICODE_STRING](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-_unicode_string) user. |
+| tuple | `tuple` | Minimal tuple implementation |
 | type_traits | `is_trivially_copyable_v`, `is_standard_layout_v` | Just enough for built-in features! |
 | utility | `pair<T1, T2>`, `scope_exit` | |
 | vector | `vector<T>` | Fan favourite, probably far from optimised. |
