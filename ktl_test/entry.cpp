@@ -211,6 +211,9 @@ KtlTestFileIoDeviceControl(
         if (!test_optional())
             status = STATUS_FAIL_CHECK;
         break;
+    case IOCTL_KTLTEST_METHOD_MAP_TEST:
+        if (!test_map())
+            status = STATUS_FAIL_CHECK;
     default:
         break;
     }

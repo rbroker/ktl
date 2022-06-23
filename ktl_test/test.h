@@ -29,6 +29,7 @@ bool test_vector();
 bool test_unicode_string();
 bool test_unicode_string_view();
 bool test_list();
+bool test_map();
 bool test_memory();
 bool test_optional();
 bool test_tuple();

@@ -4,37 +4,6 @@
 
 namespace ktl
 {
-	template<typename TFirst, typename TSecond>
-	struct pair
-	{
-		pair()
-		{
-		}
-
-		pair(TFirst&& a, TSecond&& b) :
-			first(move(a)),
-			second(move(b))
-		{
-		}
-
-		pair(pair&& other) :
-			first(other.first),
-			second(other.second)
-		{
-
-		}
-
-		pair& operator=(pair&& other)
-		{
-			first = move(other.first);
-			second = move(other.second);
-			return *this;
-		}
-
-		TFirst first;
-		TSecond second;
-	};
-
 	template<typename Fn>
 	struct [[nodiscard]] scope_exit
 	{
@@ -69,4 +38,13 @@ namespace ktl
 		bool active_ = true;
 		Fn fn_;
 	};
+
+	template<class T>
+	constexpr const T& as_const(T& t)
+	{
+		return t;
+	}
+
+	template<class T>
+	void as_const(const T&&) = delete;
 }

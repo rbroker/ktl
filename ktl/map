@@ -1,0 +1,346 @@
+#pragma once
+
+#include <kernel>
+#include <limits>
+#include <tuple>
+#include <utility>
+#include <vector>
+#include <hash_impl.h>
+
+namespace ktl
+{
+	// Based on ideas discussed in:
+	// https://www.youtube.com/watch?v=ncHmEUmJZf4
+
+	constexpr uint8_t MAP_CONTROL_EMPTY = 0x80;
+	constexpr uint8_t MAP_CONTROL_PARTIAL_HASH_MASK = 0x7F;
+
+	struct _map_control
+	{
+		_map_control(uint8_t value) : control_byte_(value)
+		{
+		}
+
+		bool is_hash(uint8_t truncatedHash) const
+		{
+			return control_byte_ == truncatedHash;
+		}
+
+		bool is_empty() const
+		{
+			return control_byte_ == MAP_CONTROL_EMPTY;
+		}
+
+		void erase()
+		{
+			control_byte_ = MAP_CONTROL_EMPTY;
+		}
+
+		uint8_t control_byte_ = MAP_CONTROL_EMPTY;
+	};
+
+	template<class key_type, class value_type, class comparer, class allocator_type>
+	struct flat_map;
+
+	template<class key_type, class value_type, class comparer, class allocator_type>
+	struct flat_map_iterator
+	{
+		using reference = tuple<key_type, value_type>&;
+		using pointer = tuple<key_type, value_type>*;
+
+		flat_map_iterator()
+			: map_{ nullptr }
+			, index_ { numeric_limits<size_t>::max() }
+		{
+		}
+
+		flat_map_iterator(observer_ptr<flat_map<key_type, value_type, comparer, allocator_type>> map, size_t index)
+			: map_{ map }
+			, index_{ index }
+		{
+		}
+
+		flat_map_iterator(const flat_map_iterator& other) :
+			map_(other.map_),
+			index_(other.index_)
+		{
+			KTL_TRACE_COPY_CONSTRUCTOR;
+		}
+
+		flat_map_iterator& operator=(const flat_map_iterator& other)
+		{
+			KTL_TRACE_COPY_ASSIGNMENT;
+
+			map_ = other.map_;
+			index_ = other.index_;
+
+			return *this;
+		}
+
+		reference operator*() const
+		{
+			return map_->map_[index_];
+		}
+
+		pointer operator->() const
+		{
+			return addressof(map_->map_[index_]);
+		}
+
+		flat_map_iterator& operator++()
+		{
+			next();
+
+			return *this;
+		}
+
+		flat_map_iterator operator++(int)
+		{
+			flat_map_iterator tmp = *this;
+			++(*this);
+			return tmp;
+		}
+
+		bool operator==(const flat_map_iterator& other)
+		{
+			return map_ == other.map_ && index_ == other.index_;
+		}
+
+		bool operator!=(const flat_map_iterator& other)
+		{
+			return !(*this == other);
+		}
+
+	private:
+		void next()
+		{
+			auto& control = map_->control_;
+			size_t capacity = map_->capacity();
+
+			// Try to find the next element by searching for an in-use slot
+			// in the control bytes.
+			do
+			{
+				++index_;
+
+				if (index_ < capacity)
+				{
+					// If we found an element, great. Stop probing.
+					if (!control[index_].is_empty())
+						return;
+				}
+			} while (index_ < capacity);
+
+			// We didn't find an element, so set ourselves as end()
+			index_ = numeric_limits<size_t>::max();
+			map_ = nullptr;
+		}
+
+	private:
+		observer_ptr<flat_map<key_type, value_type, comparer, allocator_type>> map_;
+		size_t index_;
+	};
+
+	template<class key_type, class value_type, class comparer = equal_to<key_type>, class allocator_type = paged_pool_allocator>
+	struct flat_map
+	{
+		using iterator = flat_map_iterator<key_type, value_type, comparer, allocator_type>;
+		friend struct iterator;
+
+		iterator insert(key_type&& key, value_type&& value)
+		{
+			if (!try_grow())
+				return iterator{};
+
+			tuple t{ move(key), move(value) };
+
+			size_t index = insert_impl(control_, map_, move(t));
+
+			if (index == numeric_limits<size_t>::max())
+				return iterator{};
+			else
+				return iterator(this, index);
+		}
+
+		iterator find(const key_type& key)
+		{
+			size_t index = find_impl(key);
+
+			if (index == numeric_limits<size_t>::max())
+				return iterator{};
+			else
+				return iterator(this, index);
+		}
+
+		size_t capacity() const
+		{
+			return control_.size();
+		}
+
+		size_t size() const
+		{
+			size_t s = 0;
+
+			for (const auto& c : as_const(control_))
+			{
+				if (c.is_empty())
+					++s;
+			}
+
+			return s;
+		}
+
+		iterator erase(const key_type& key)
+		{
+			size_t index = find_impl(key);
+
+			if (index == numeric_limits<size_t>::max())
+				return iterator{};
+
+			control_[index].erase();
+
+			// If this type needs some vaguely complex destruction
+			// we need to deal with it now, otherwise leave it alone.
+			if constexpr (!is_trivially_copyable_v<value_type>)
+			{
+				map_[index] = {};
+			}
+
+			auto it = iterator{ this, index };
+			return ++it;
+		}
+
+		iterator begin() const
+		{
+			return iterator {this, 0 };
+		}
+
+		iterator end() const
+		{
+			return iterator{};
+		}
+
+		[[nodiscard]] bool reserve(size_t newCapacity)
+		{
+			if (newCapacity <= capacity())
+				return true;
+
+			vector<_map_control, allocator_type> newControl;
+			if (!newControl.resize(newCapacity, MAP_CONTROL_EMPTY))
+				return false;
+
+			vector<tuple<key_type, value_type>, allocator_type> newMap;
+			if (!newMap.resize(newCapacity))
+				return false;
+
+			for (auto&& t : map_)
+			{
+				insert_impl(newControl, newMap, move(t));
+			}
+
+			control_ = move(newControl);
+			map_ = move(newMap);
+
+			return true;
+		}
+
+	private:
+		__forceinline size_t insert_impl(vector<_map_control>& control, vector<tuple<key_type, value_type>>& map, tuple<key_type, value_type>&& t)
+		{
+			auto&& [key, value] = t;
+			auto h = hash<key_type>{}(key);
+			uint8_t truncated_hash = h & MAP_CONTROL_PARTIAL_HASH_MASK;
+			size_t map_capacity = control.size();
+			size_t index = h % map_capacity;
+			const size_t endIndex = index;
+
+			// Probe each element in the map at least once.
+			do
+			{
+				if (control[index].is_empty())
+				{
+					map[index] = move(t);
+					control[index] = truncated_hash;
+					return index;
+				}
+
+				// wrap back to the start of the map if we reach the end.
+				index = (index + 1) % map_capacity;
+			} while (index != endIndex);
+
+			return numeric_limits<size_t>::max();
+		}
+
+		__forceinline size_t find_impl(const key_type& key)
+		{
+			auto h = hash<key_type>{}(key);
+			uint8_t truncated_hash = h & MAP_CONTROL_PARTIAL_HASH_MASK;
+			const size_t map_capacity = capacity();
+			size_t index = h % map_capacity;
+			const size_t endIndex = index;
+
+			// Probe each element at least once.
+			do
+			{
+				if (control_[index].is_hash(truncated_hash))
+				{
+					const auto& [element_key, element_value] = map_[index];
+
+					if (hash<key_type>{}(element_key) == h && comparer()(element_key, key))
+						return index;
+				}
+
+				// If our probe hit an empty map element, then the value
+				// we're looking for can't be in this map.
+				if (control_[index].is_empty())
+					break;
+
+				// wrap back to the start of the map if we reach the end.
+				index = (index + 1) % map_capacity;
+			} while (index != endIndex);
+
+			return numeric_limits<size_t>::max();
+		}
+
+		/// Returns the load factor of the map. The caller *must* perform this call and any
+		/// subsequent calculations in a scope containing a ktl::floating_point_state object
+		[[nodiscard]] double load_factor() const
+		{
+			return static_cast<double>(size()) / capacity();
+		}
+
+		/// Returns the maximum load factor of the map. The caller *must* perform this call and any
+		/// subsequent calculations in a scope containing a ktl::floating_point_state object
+		[[nodiscard]] double max_load_factor() const
+		{
+			return 0.7;
+		}
+
+		[[nodiscard]] bool try_grow()
+		{
+			{
+				floating_point_state state;
+
+				if (load_factor() < max_load_factor())
+					return true;
+			}
+
+			auto c = capacity();
+
+			if (c == 0)
+			{
+				return reserve(1);
+			}
+			else
+			{
+				return reserve(c * 2);
+			}
+		}
+
+
+
+	private:
+		vector<_map_control, allocator_type> control_;
+		vector<tuple<key_type, value_type>, allocator_type> map_;
+	};
+}

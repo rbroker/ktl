@@ -133,6 +133,8 @@ namespace ktl
 		{
 		}
 
+		_tuple_wrapper& operator=(_tuple_wrapper&&) = default;
+
 		[[no_unique_address]] T type_;
 	};
 
@@ -146,6 +148,8 @@ namespace ktl
 		public _tuple_wrapper<index, remove_reference_t<T>>,
 		public _tuple_impl<index + 1, tuple_types...>
 	{
+		_tuple_impl() = default;
+
 		template<typename... ctor_types>
 		_tuple_impl(tuple<ctor_types...>& t) :
 			_tuple_wrapper<index, remove_reference_t<T>>(get<index>(t)),
@@ -171,6 +175,8 @@ namespace ktl
 	template<typename T, typename... tuple_types>
 	struct tuple : public _tuple_impl<0, T, tuple_types...>
 	{
+		tuple() = default;
+
 		tuple(tuple& t) : _tuple_impl<0, T, tuple_types...>(t)
 		{
 		}
@@ -183,6 +189,8 @@ namespace ktl
 		tuple(ctor_args&&... args) : _tuple_impl<0, T, tuple_types...>(forward<ctor_args>(args)...)
 		{
 		}
+
+		tuple& operator=(tuple&&) = default;
 	};
 
 	template<typename... ctor_args>

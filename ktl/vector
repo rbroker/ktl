@@ -125,6 +125,7 @@ namespace ktl
 	{
 		static_assert(is_base_of_v<generic_allocator, allocator_type>, "ktl::vector requires allocator capable of arbitrary size allocations");
 
+		using value_type = T;
 		using iterator = vector_iterator<T>;
 
 		vector() :
@@ -306,7 +307,38 @@ namespace ktl
 			return true;
 		}
 
-		[[nodiscard]] iterator begin()
+		[[nodiscard]] bool resize(size_t newSize, const value_type& value)
+		{
+			if (newSize < size())
+			{
+				while (size() > newSize)
+				{
+					pop_back();
+				}
+			}
+			else if (newSize > size())
+			{
+				if (!reserve(newSize))
+				{
+					KTL_LOG_ERROR("Failed to allocate for resize: %lu -> %llu\n", size(), newSize);
+					return false;
+				}
+
+				// We need to default-construct some elements.
+				for (size_t i = size(); i < newSize; ++i)
+				{
+					if (!emplace_back(value))
+					{
+						KTL_LOG_ERROR("Failed to default construct element in vector\n");
+						return false;
+					}
+				}
+			}
+
+			return true;
+		}
+
+		[[nodiscard]] iterator begin() const
 		{
 			if (empty())
 			{
@@ -314,11 +346,11 @@ namespace ktl
 			}
 			else
 			{
-				return iterator{ data(), data() + size() };
+				return iterator{ buffer_, buffer_ + size() };
 			}
 		}
 
-		[[nodiscard]] constexpr iterator end()
+		[[nodiscard]] constexpr iterator end() const
 		{
 			return iterator{};
 		}

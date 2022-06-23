@@ -49,6 +49,7 @@ DriverUnload(
 | kernel | `floating_point_state`, `auto_irp`, `safe_user_buffer`, `object_attributes` | `ktl::floating_point_state` is needed for using [x87 floating point](https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-kesaveextendedprocessorstate).
 | limits | `<T>min`, `<T>max` | For your typical fixed-width integer types in cstdint |
 | list | `list<T>` | Based on kernel [LIST_ENTRY](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-list_entry) |
+| map | `flat_map<K, V>` | Flat hash map implementation. |
 | memory | `addressof`, `unique_ptr<T>`, `observer_ptr<T>`, `make_unique<T>`, `paged_pool_allocator`, `nonpaged_pool_allocator`, `paged_lookaside_allocator`, `nonpaged_lookaside_allocator` | |
 | mutex | `scoped_lock`, `mutex` | Non deadlock-avoiding lock, based on [FAST_MUTEX](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/eprocess) |
 | optional | `optional<T>` | Partial optional implementation |
