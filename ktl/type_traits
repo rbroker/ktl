@@ -152,6 +152,9 @@ namespace ktl
 	template<class T>
 	inline constexpr bool is_trivially_copyable_v = __is_trivially_copyable(T);
 
+	template<class T>
+	inline constexpr bool is_trivially_destructable_v = __is_trivially_destructible(T);
+
 	// ktl::is_standard_layout_v
 	template<class T>
 	inline constexpr bool is_standard_layout_v = __is_standard_layout(T);

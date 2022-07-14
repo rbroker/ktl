@@ -162,6 +162,21 @@ namespace ktl
 				return iterator(this, index);
 		}
 
+		iterator insert(key_type const& key, value_type const& value)
+		{
+			if (!try_grow())
+				return iterator{};
+
+			tuple t{ key, value };
+
+			size_t index = insert_impl(control_, map_, move(t));
+
+			if (index == numeric_limits<size_t>::max())
+				return iterator{};
+			else
+				return iterator(this, index);
+		}
+
 		iterator find(const key_type& key)
 		{
 			size_t index = find_impl(key);
@@ -183,13 +198,16 @@ namespace ktl
 
 			for (const auto& c : as_const(control_))
 			{
-				if (c.is_empty())
+				if (!c.is_empty())
 					++s;
 			}
 
 			return s;
 		}
 
+		/// <summary>
+		/// Remove the element with the given key from the map.
+		/// </summary>
 		iterator erase(const key_type& key)
 		{
 			size_t index = find_impl(key);
@@ -201,7 +219,7 @@ namespace ktl
 
 			// If this type needs some vaguely complex destruction
 			// we need to deal with it now, otherwise leave it alone.
-			if constexpr (!is_trivially_copyable_v<value_type>)
+			if constexpr (!is_trivially_destructable_v<value_type>)
 			{
 				map_[index] = {};
 			}
@@ -218,6 +236,38 @@ namespace ktl
 		iterator end() const
 		{
 			return iterator{};
+		}
+
+		/// <summary>
+		/// Shrinks the map to exactly fit the number of elements it contains.
+		/// Will incur a rehashing cost and temporarily increased memory usage while shrinking.
+		/// </summary>
+		[[nodiscard]] bool shrink_to_fit()
+		{
+			const size_t s = size();
+
+			// Don't do an expensive rehash unless we have to.
+			if (s <= capacity())
+				return true;
+
+			vector<_map_control, allocator_type> newControl;
+			if (!newControl.resize(s, MAP_CONTROL_EMPTY))
+				return false;
+
+			vector<tuple<key_type, value_type>, allocator_type> newMap;
+			if (!newMap.resize(s))
+				return false;
+
+			// Rehash elements
+			for (auto&& t : map_)
+			{
+				insert_impl(newControl, newMap, move(t));
+			}
+
+			control_ = move(newControl);
+			map_ = move(newMap);
+
+			return true;
 		}
 
 		[[nodiscard]] bool reserve(size_t newCapacity)
@@ -257,6 +307,19 @@ namespace ktl
 			// Probe each element in the map at least once.
 			do
 			{
+				// Potential duplicate key.
+				if (control[index].is_hash(truncated_hash))
+				{
+					const auto& [element_key, element_value] = map[index];
+
+					if (hash<key_type>{}(element_key) == h && comparer()(element_key, key))
+					{
+						map[index] = move(t);
+						return index;
+					}
+				}
+
+				// We found an empty slot in the control map. Insert here.
 				if (control[index].is_empty())
 				{
 					map[index] = move(t);
@@ -343,4 +406,16 @@ namespace ktl
 		vector<_map_control, allocator_type> control_;
 		vector<tuple<key_type, value_type>, allocator_type> map_;
 	};
+
+	template<class key_type, class value_type, class comparer, class allocator_type>
+	flat_map_iterator<key_type, value_type, comparer, allocator_type> begin(flat_map<key_type, value_type, comparer, allocator_type>& m)
+	{
+		return m.begin();
+	}
+
+	template<class key_type, class value_type, class comparer, class allocator_type>
+	flat_map_iterator<key_type, value_type, comparer, allocator_type> end(flat_map<key_type, value_type, comparer, allocator_type>& m)
+	{
+		return m.end();
+	}
 }

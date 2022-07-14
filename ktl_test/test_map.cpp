@@ -16,7 +16,27 @@ bool test_map()
 		ASSERT_TRUE(key == 0, "Unexpected map key");
 		ASSERT_TRUE(value == 1, "Unexpected map value");
 
-		m.erase(0);
+		auto eraseIt = m.erase(0);
+		ASSERT_TRUE(eraseIt == ktl::end(m), "Unexpected next iterator after erasing last element from map.");
+
+		// Find erased value.
+		ASSERT_TRUE(m.find(0) == m.end(), "Unexpectedly found erased value!");
+
+		// Overwrite key.
+		ASSERT_TRUE(m.insert(0, 1) != m.end(), "Unexpected result of insertion.");
+		ASSERT_TRUE(m.insert(0, 2) != m.end(), "Unexpected result of insertion.");
+
+		ASSERT_TRUE(m.size() == 1, "Unexpected map size after overwriting key.");
+
+		ASSERT_TRUE(m.reserve(5000), "Unable to reset map capacity!");
+
+		for (int i = 1; i < 5000; ++i)
+		{
+			m.insert(i, i + 1);
+		}
+
+		ASSERT_TRUE(m.size() == 5000, "Unexpected number of elements in map after many insertions");
+		ASSERT_TRUE(m.find(2500) != m.end(), "Unable to find inserted element!");
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{
