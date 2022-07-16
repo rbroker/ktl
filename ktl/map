@@ -4,13 +4,235 @@
 #include <limits>
 #include <tuple>
 #include <utility>
-#include <vector>
 #include <hash_impl.h>
 
 namespace ktl
 {
 	// Based on ideas discussed in:
 	// https://www.youtube.com/watch?v=ncHmEUmJZf4
+
+#pragma once
+
+#include <limits>
+#include <memory>
+#include <optional>
+#include <vector>
+
+	namespace internal
+	{
+		// Resizable array which doesn't own the elements it contains
+		// Intended for use with the map, so that we can destroy elements in the pseudo vector
+		// without needing to memmove etc.
+		template<typename T>
+		struct flat_map_data_array_iterator
+		{
+			using value_type = typename T;
+			using reference = value_type&;
+			using pointer = value_type*;
+
+			flat_map_data_array_iterator() :
+				begin_(nullptr),
+				end_(nullptr),
+				index_(numeric_limits<size_t>::max())
+			{
+			}
+
+			flat_map_data_array_iterator(const pointer begin, const pointer end) :
+				begin_(begin),
+				end_(end),
+				index_(0)
+			{
+			}
+
+			flat_map_data_array_iterator(const pointer begin, const pointer end, size_t index) :
+				begin_(begin),
+				end_(end),
+				index_(index)
+			{
+			}
+
+			flat_map_data_array_iterator(const flat_map_data_array_iterator& other) :
+				begin_(other.begin_),
+				end_(other.end_),
+				index_(other.index_)
+			{
+				KTL_TRACE_COPY_CONSTRUCTOR;
+			}
+
+			flat_map_data_array_iterator& operator=(const flat_map_data_array_iterator& other)
+			{
+				KTL_TRACE_COPY_ASSIGNMENT;
+
+				begin_ = other.begin_;
+				end_ = other.end_;
+				index_ = other.index_;
+
+				return *this;
+			}
+
+			reference operator*() const
+			{
+				return begin_[index_];
+			}
+
+			pointer operator->() const
+			{
+				return addressof(begin_[index_]);
+			}
+
+			flat_map_data_array_iterator& operator++()
+			{
+				if ((begin_ + ++index_) >= end_)
+				{
+					begin_ = nullptr;
+					end_ = nullptr;
+					index_ = numeric_limits<size_t>::max();
+				}
+
+				return *this;
+			}
+
+			flat_map_data_array_iterator operator++(int)
+			{
+				flat_map_data_array_iterator tmp = *this;
+				++(*this);
+				return tmp;
+			}
+
+			flat_map_data_array_iterator& operator--()
+			{
+				if (index_-- == 0)
+				{
+					begin_ = nullptr;
+					end_ = nullptr;
+					index_ = numeric_limits<size_t>::max();
+				}
+
+				return *this;
+			}
+
+			flat_map_data_array_iterator operator--(int)
+			{
+				flat_map_data_array_iterator tmp = *this;
+				--(*this);
+				return tmp;
+			}
+
+			[[nodiscard]] bool operator==(const flat_map_data_array_iterator& other) const
+			{
+				return begin_ == other.begin_ && end_ == other.end_ && index_ == other.index_;
+			}
+
+			[[nodiscard]] bool operator!=(const flat_map_data_array_iterator& other) const
+			{
+				return !(*this == other);
+			}
+
+			template<class T, class allocator_type>
+			friend struct flat_map_data_array;
+
+		private:
+			pointer begin_;
+			pointer end_;
+			size_t index_ = 0;
+		};
+
+		template<class T, class allocator_type = paged_pool_allocator>
+		struct flat_map_data_array
+		{
+			static_assert(is_base_of_v<generic_allocator, allocator_type>, "ktl::pseudo_vector requires allocator capable of arbitrary size allocations");
+
+			using value_type = T;
+			using iterator = flat_map_data_array_iterator<T>;
+
+			flat_map_data_array() :
+				a_{ allocator_type::instance() }
+			{
+			}
+
+			flat_map_data_array(flat_map_data_array&& other) :
+				capacity_(move(other.capacity_)),
+				buffer_(move(other.buffer_)),
+				a_(other.a_)
+			{
+				other.capacity_ = 0;
+				other.buffer_ = nullptr;
+			}
+
+			~flat_map_data_array()
+			{
+				release_memory();
+			}
+
+			flat_map_data_array& operator=(flat_map_data_array&& other)
+			{
+				release_memory();
+
+				buffer_ = move(other.buffer_);
+				capacity_ = other.capacity_;
+
+				other.capacity_ = 0;
+				other.buffer_ = nullptr;
+				return *this;
+			}
+
+			flat_map_data_array(const flat_map_data_array& other) = delete;
+			flat_map_data_array& operator=(const flat_map_data_array& other) = delete;
+
+			inline [[nodiscard]] size_t capacity() const
+			{
+				return capacity_;
+			}
+
+			[[nodiscard]] bool reserve(size_t newSize)
+			{
+				if (capacity() >= newSize)
+					return true;
+
+				// Obtain freshly-sized backing memory
+				T* tmp = reinterpret_cast<T*>(a_.allocate(sizeof(T) * newSize));
+				if (!tmp)
+					return false;
+
+				// Free existing backing memory.
+				release_memory();
+
+				capacity_ = newSize;
+				buffer_ = tmp;
+
+				return true;
+			}
+
+			[[nodiscard]] T& operator[](size_t index)
+			{
+				return data()[index];
+			}
+
+			[[nodiscard]] T* data()
+			{
+				return buffer_;
+			}
+
+			[[nodiscard]] const T* data() const
+			{
+				return buffer_;
+			}
+
+		private:
+			void release_memory()
+			{
+				if (!buffer_)
+					return;
+
+				a_.deallocate(buffer_);
+			}
+
+		private:
+			size_t capacity_ = 0;
+			T* buffer_ = nullptr;
+			allocator_type& a_;
+		};
+	}
 
 	constexpr uint8_t MAP_CONTROL_EMPTY = 0x80;
 	constexpr uint8_t MAP_CONTROL_PARTIAL_HASH_MASK = 0x7F;
@@ -147,6 +369,11 @@ namespace ktl
 		using iterator = flat_map_iterator<key_type, value_type, comparer, allocator_type>;
 		friend struct iterator;
 
+		~flat_map()
+		{
+			clear();
+		}
+
 		iterator insert(key_type&& key, value_type&& value)
 		{
 			if (!try_grow())
@@ -205,6 +432,20 @@ namespace ktl
 			return s;
 		}
 
+		void clear()
+		{
+			size_t index = 0;
+			for (auto& c : control_)
+			{
+				if (!c.is_empty())
+				{
+					remove_element(control_, map_, index);
+				}
+
+				++index;
+			}
+		}
+
 		/// <summary>
 		/// Remove the element with the given key from the map.
 		/// </summary>
@@ -215,14 +456,7 @@ namespace ktl
 			if (index == numeric_limits<size_t>::max())
 				return iterator{};
 
-			control_[index].erase();
-
-			// If this type needs some vaguely complex destruction
-			// we need to deal with it now, otherwise leave it alone.
-			if constexpr (!is_trivially_destructable_v<value_type>)
-			{
-				map_[index] = {};
-			}
+			remove_element(control_, map_, index);
 
 			auto it = iterator{ this, index };
 			return ++it;
@@ -250,18 +484,24 @@ namespace ktl
 			if (s <= capacity())
 				return true;
 
-			vector<_map_control, allocator_type> newControl;
+			internal::flat_map_data_array<_map_control, allocator_type> newControl;
 			if (!newControl.resize(s, MAP_CONTROL_EMPTY))
 				return false;
 
-			vector<tuple<key_type, value_type>, allocator_type> newMap;
+			internal::flat_map_data_array<tuple<key_type, value_type>, allocator_type> newMap;
 			if (!newMap.resize(s))
 				return false;
 
-			// Rehash elements
-			for (auto&& t : map_)
+			// Rehash!
+			size_t index = 0;
+			for (const auto& c : as_const(control_))
 			{
-				insert_impl(newControl, newMap, move(t));
+				if (!c.is_empty())
+				{
+					insert_impl(newControl, newMap, move(map_[index]));
+				}
+
+				++index;
 			}
 
 			control_ = move(newControl);
@@ -279,13 +519,19 @@ namespace ktl
 			if (!newControl.resize(newCapacity, MAP_CONTROL_EMPTY))
 				return false;
 
-			vector<tuple<key_type, value_type>, allocator_type> newMap;
-			if (!newMap.resize(newCapacity))
+			internal::flat_map_data_array<tuple<key_type, value_type>, allocator_type> newMap;
+			if (!newMap.reserve(newCapacity))
 				return false;
 
-			for (auto&& t : map_)
+			size_t index = 0;
+			for (const auto& c : as_const(control_))
 			{
-				insert_impl(newControl, newMap, move(t));
+				if (!c.is_empty())
+				{
+					insert_impl(newControl, newMap, move(map_[index]));
+				}
+
+				++index;
 			}
 
 			control_ = move(newControl);
@@ -295,7 +541,20 @@ namespace ktl
 		}
 
 	private:
-		__forceinline size_t insert_impl(vector<_map_control>& control, vector<tuple<key_type, value_type>>& map, tuple<key_type, value_type>&& t)
+		void remove_element(vector<_map_control>& control, internal::flat_map_data_array<tuple<key_type, value_type>>& map, size_t index)
+		{
+			control[index].erase();
+
+			// If this type needs non-trivial destruction, then do something with
+			// it, otherwise we can just leave it in the map_ with the control byte
+			// indicating empty.
+			if constexpr (!is_trivially_destructable_v<tuple<key_type, value_type>>)
+			{
+				map[index].~tuple();
+			}
+		}
+
+		__forceinline size_t insert_impl(vector<_map_control>& control, internal::flat_map_data_array<tuple<key_type, value_type>>& map, tuple<key_type, value_type>&& t)
 		{
 			auto&& [key, value] = t;
 			auto h = hash<key_type>{}(key);
@@ -314,6 +573,11 @@ namespace ktl
 
 					if (hash<key_type>{}(element_key) == h && comparer()(element_key, key))
 					{
+						if constexpr (!is_trivially_destructable_v<tuple<key_type, value_type>>)
+						{
+							map[index].~tuple();
+						}
+
 						map[index] = move(t);
 						return index;
 					}
@@ -400,11 +664,9 @@ namespace ktl
 			}
 		}
 
-
-
 	private:
 		vector<_map_control, allocator_type> control_;
-		vector<tuple<key_type, value_type>, allocator_type> map_;
+		internal::flat_map_data_array<tuple<key_type, value_type>, allocator_type> map_;
 	};
 
 	template<class key_type, class value_type, class comparer, class allocator_type>

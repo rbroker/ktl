@@ -29,13 +29,13 @@ bool test_map()
 		ASSERT_TRUE(m.size() == 1, "Unexpected map size after overwriting key.");
 
 		ASSERT_TRUE(m.reserve(5000), "Unable to reset map capacity!");
-
-		for (int i = 1; i < 5000; ++i)
+		const size_t BIG_MAP_SIZE = 500000;
+		for (int i = 1; i < BIG_MAP_SIZE; ++i)
 		{
 			m.insert(i, i + 1);
 		}
 
-		ASSERT_TRUE(m.size() == 5000, "Unexpected number of elements in map after many insertions");
+		ASSERT_TRUE(m.size() == BIG_MAP_SIZE, "Unexpected number of elements in map after many insertions");
 		ASSERT_TRUE(m.find(2500) != m.end(), "Unable to find inserted element!");
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
