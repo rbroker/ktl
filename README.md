@@ -43,26 +43,26 @@ DriverUnload(
 ## Features
 |Header|Feature|Note|
 |--|--|---|
-| (algorithm)[ktl/algorithm] | `find`, `find_if`, `equal_to`, `min`, `max` | |
-| (cstddef)[ktl/cstddef] | `nullptr_t` | |
-| (cstdint)[ktl/cstdint] | `int8_t` -> `uint64_t` | |
-| (kernel)[ktl/kernel] | `floating_point_state`, `auto_irp`, `safe_user_buffer`, `object_attributes` | `ktl::floating_point_state` is needed for using [x87 floating point](https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-kesaveextendedprocessorstate).
-| (limits)[ktl/limits] | `<T>min`, `<T>max` | For your typical fixed-width integer types in cstdint |
-| (list)[ktl/list] | `list<T>` | Based on kernel [LIST_ENTRY](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-list_entry) |
-| (map)[ktl/map] | `flat_map<K, V>` | Flat hash map implementation. |
-| (memory)[ktl/memory] | `addressof`, `unique_ptr<T>`, `observer_ptr<T>`, `make_unique<T>`, `paged_pool_allocator`, `nonpaged_pool_allocator`, `paged_lookaside_allocator`, `nonpaged_lookaside_allocator` | |
-| (mutex)[ktl/mutex] | `scoped_lock`, `mutex` | Non deadlock-avoiding lock, based on [FAST_MUTEX](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/eprocess) |
-| (optional)[ktl/optional] | `optional<T>` | Partial optional implementation |
-| (new)[ktl/new] | `new`, `delete`, `new[]`, `delete[]`, placement `new` | You must use either placement new, or operator new overloaded with `ktl::pool_type`. All news are non-throwing. |
-| (set)[ktl/set] | `unordered_set<T>` | set implementation. |
-| (shared_mutex)[ktl/shared_mutex] | `shared_lock`, `shared_mutex` | reader-writer locking based on [ERESOURCE](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/introduction-to-eresource-routines) |
-| (string)[ktl/string] | `unicode_string` | No `string` or `wstring`, everything is UTF-16 [UNICODE_STRING](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-_unicode_string). |
-| (string_view)[ktl/string_view) | `unicode_string_view` | For the performance-conscious [UNICODE_STRING](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-_unicode_string) user. |
-| (tuple)[ktl/tuple] | `tuple` | Minimal tuple implementation |
-| (type_traits)[ktl/type_traits] | `is_trivially_copyable_v`, `is_standard_layout_v` | Just enough for built-in features! |
-| (utility)[ktl/utility] | `scope_exit` | |
-| (vector)[ktl/vector] | `vector<T>` | Fan favourite, probably far from optimised. |
-| (wdf)[ktl/wdf] | | Various WDF helper classes |
+| [algorithm](ktl/algorithm) | `find`, `find_if`, `equal_to`, `min`, `max` | |
+| [cstddef](ktl/cstddef) | `nullptr_t` | |
+| [cstdint](ktl/cstdint) | `int8_t` -> `uint64_t` | |
+| [kernel](ktl/kernel) | `floating_point_state`, `auto_irp`, `safe_user_buffer`, `object_attributes` | `ktl::floating_point_state` is needed for using [x87 floating point](https://docs.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/nf-wdm-kesaveextendedprocessorstate).
+| [limits](ktl/limits) | `<T>min`, `<T>max` | For your typical fixed-width integer types in cstdint |
+| [list](ktl/list) | `list<T>` | Based on kernel [LIST_ENTRY](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-list_entry) |
+| [map](ktl/map) | `flat_map<K, V>` | Flat hash map implementation. |
+| [memory](ktl/memory) | `addressof`, `unique_ptr<T>`, `observer_ptr<T>`, `make_unique<T>`, `paged_pool_allocator`, `nonpaged_pool_allocator`, `paged_lookaside_allocator`, `nonpaged_lookaside_allocator` | |
+| [mutex](ktl/mutex) | `scoped_lock`, `mutex` | Non deadlock-avoiding lock, based on [FAST_MUTEX](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/eprocess) |
+| [optional](ktl/optional) | `optional<T>` | Partial optional implementation |
+| [new](ktl/new) | `new`, `delete`, `new[]`, `delete[]`, placement `new` | You must use either placement new, or operator new overloaded with `ktl::pool_type`. All news are non-throwing. |
+| [set](ktl/set) | `unordered_set<T>` | set implementation. |
+| [shared_mutex](ktl/shared_mutex) | `shared_lock`, `shared_mutex` | reader-writer locking based on [ERESOURCE](https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/introduction-to-eresource-routines) |
+| [string](ktl/string) | `unicode_string` | No `string` or `wstring`, everything is UTF-16 [UNICODE_STRING](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-_unicode_string). |
+| [string_view](ktl/string_view) | `unicode_string_view` | For the performance-conscious [UNICODE_STRING](https://docs.microsoft.com/en-us/windows/win32/api/ntdef/ns-ntdef-_unicode_string) user. |
+| [tuple](ktl/tuple) | `tuple` | Minimal tuple implementation |
+| [type_traits](ktl/type_traits) | `is_trivially_copyable_v`, `is_standard_layout_v` | Just enough for built-in features! |
+| [utility](ktl/utility) | `scope_exit` | |
+| [vector](ktl/vector) | `vector<T>` | Fan favourite, probably far from optimised. |
+| [wdf](ktl/wdf) | | Various WDF helper classes |
 
 ## ktl-ctl
 ktl-ctl.exe supports the usermode driver controls:
