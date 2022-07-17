@@ -4,19 +4,13 @@
 #include "limits"
 #include "tuple"
 #include "utility"
+#include "vector"
 #include "hash_impl.h"
 
 namespace ktl
 {
 	// Based on ideas discussed in:
 	// https://www.youtube.com/watch?v=ncHmEUmJZf4
-
-#pragma once
-
-#include <limits>
-#include <memory>
-#include <optional>
-#include <vector>
 
 	namespace internal
 	{
