@@ -2,8 +2,8 @@
 
 #include <ktl_core.h>
 
-#include <new>
-#include <type_traits>
+#include "new"
+#include "type_traits"
 
 namespace ktl
 {

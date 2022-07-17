@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include <ktl_core.h>
+#include "ktl_core.h"
 /*
  * Derived from, with unnecessary code stripped out:
  * Copyright 2020 王一 Wang Yi <godspeed_china@yeah.net>
@@ -8,7 +8,7 @@
  * See github.com/wangyi-fudan/wyhash/LICENSE
  */
 
-#include <cstdint>
+#include "cstdint"
 #include <emmintrin.h>
 
 extern "C"

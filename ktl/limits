@@ -1,7 +1,7 @@
 #pragma once
 
-#include <ktl_core.h>
-#include <cstdint>
+#include "ktl_core.h"
+#include "cstdint"
 
 namespace ktl
 {
