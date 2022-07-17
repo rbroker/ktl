@@ -10,11 +10,13 @@ bool test_map()
 
 		m.insert(0, 1);
 
-		auto it = m.find(0);
-		ASSERT_TRUE(it != m.end(), "Unexpected end iterator!");
-		auto [key, value] = *it;
-		ASSERT_TRUE(key == 0, "Unexpected map key");
-		ASSERT_TRUE(value == 1, "Unexpected map value");
+		{
+			auto it = m.find(0);
+			ASSERT_TRUE(it != m.end(), "Unexpected end iterator!");
+			auto [key, value] = *it;
+			ASSERT_TRUE(key == 0, "Unexpected map key");
+			ASSERT_TRUE(value == 1, "Unexpected map value");
+		}
 
 		auto eraseIt = m.erase(0);
 		ASSERT_TRUE(eraseIt == ktl::end(m), "Unexpected next iterator after erasing last element from map.");
@@ -36,7 +38,20 @@ bool test_map()
 		}
 
 		ASSERT_TRUE(m.size() == BIG_MAP_SIZE, "Unexpected number of elements in map after many insertions");
+		ASSERT_TRUE(m.capacity() > m.size(), "Map growth strategy didn't leave us with excess elements");
+		auto initialCapacity = m.capacity();
+		ASSERT_TRUE(m.shrink_to_fit(), "Map minimisation failed.");
+		ASSERT_TRUE(m.capacity() < initialCapacity, "Unexpected map capacity after shrinkage! (%llu >= %llu, %llu)", m.capacity(), initialCapacity, m.size());
+		ASSERT_TRUE(m.capacity() > m.size(), "Unexpected map capacity after shrinkage!");
 		ASSERT_TRUE(m.find(2500) != m.end(), "Unable to find inserted element!");
+		{
+			auto bigFind = m.find(BIG_MAP_SIZE - 1);
+			auto [key, value] = *bigFind;
+			ASSERT_TRUE(key == BIG_MAP_SIZE - 1, "Unexpected value of key of found element.");
+			ASSERT_TRUE(value == key + 1, "Unexpected value of value of found element.");
+		}
+
+		ktl::flat_map<int, int> min_shrink;
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{

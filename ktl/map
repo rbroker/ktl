@@ -1,6 +1,7 @@
 #pragma once
 
 #include "kernel"
+#include "algorithm"
 #include "limits"
 #include "tuple"
 #include "utility"
@@ -415,15 +416,7 @@ namespace ktl
 
 		size_t size() const
 		{
-			size_t s = 0;
-
-			for (const auto& c : as_const(control_))
-			{
-				if (!c.is_empty())
-					++s;
-			}
-
-			return s;
+			return size_;
 		}
 
 		void clear()
@@ -467,41 +460,25 @@ namespace ktl
 		}
 
 		/// <summary>
-		/// Shrinks the map to exactly fit the number of elements it contains.
+		/// Shrinks the map such that it's fully loaded (as defined by max_load_factor).
 		/// Will incur a rehashing cost and temporarily increased memory usage while shrinking.
 		/// </summary>
 		[[nodiscard]] bool shrink_to_fit()
 		{
-			const size_t s = size();
+			size_t newCapacity;
 
-			// Don't do an expensive rehash unless we have to.
-			if (s <= capacity())
-				return true;
-
-			internal::flat_map_data_array<_map_control, allocator_type> newControl;
-			if (!newControl.resize(s, MAP_CONTROL_EMPTY))
-				return false;
-
-			internal::flat_map_data_array<tuple<key_type, value_type>, allocator_type> newMap;
-			if (!newMap.resize(s))
-				return false;
-
-			// Rehash!
-			size_t index = 0;
-			for (const auto& c : as_const(control_))
 			{
-				if (!c.is_empty())
-				{
-					insert_impl(newControl, newMap, move(map_[index]));
-				}
+				floating_point_state state;
 
-				++index;
+				double excessLoad = max_load_factor() - load_factor();
+				newCapacity = (capacity() - (size_t)(((double)capacity()) * excessLoad)) + 1;
 			}
 
-			control_ = move(newControl);
-			map_ = move(newMap);
+			// Don't do an expensive rehash unless we need to.
+			if (newCapacity == capacity())
+				return true;
 
-			return true;
+			return rehash(newCapacity);
 		}
 
 		[[nodiscard]] bool reserve(size_t newCapacity)
@@ -509,29 +486,7 @@ namespace ktl
 			if (newCapacity <= capacity())
 				return true;
 
-			vector<_map_control, allocator_type> newControl;
-			if (!newControl.resize(newCapacity, MAP_CONTROL_EMPTY))
-				return false;
-
-			internal::flat_map_data_array<tuple<key_type, value_type>, allocator_type> newMap;
-			if (!newMap.reserve(newCapacity))
-				return false;
-
-			size_t index = 0;
-			for (const auto& c : as_const(control_))
-			{
-				if (!c.is_empty())
-				{
-					insert_impl(newControl, newMap, move(map_[index]));
-				}
-
-				++index;
-			}
-
-			control_ = move(newControl);
-			map_ = move(newMap);
-
-			return true;
+			return rehash(newCapacity);
 		}
 
 	private:
@@ -546,6 +501,36 @@ namespace ktl
 			{
 				map[index].~tuple();
 			}
+
+			--size_;
+		}
+
+		bool rehash(size_t newCapacity)
+		{
+			vector<_map_control, allocator_type> newControl;
+			if (!newControl.resize(newCapacity, MAP_CONTROL_EMPTY))
+				return false;
+
+			internal::flat_map_data_array<tuple<key_type, value_type>, allocator_type> newMap;
+			if (!newMap.reserve(newCapacity))
+				return false;
+
+			size_ = 0; // We'll be re-inserting all elements which will increment size, so just drop ourselves back down to "empty" before re-insertion.
+			size_t index = 0;
+			for (const auto& c : as_const(control_))
+			{
+				if (!c.is_empty())
+				{
+					insert_impl(newControl, newMap, move(map_[index]));
+				}
+
+				++index;
+			}
+
+			control_ = move(newControl);
+			map_ = move(newMap);
+
+			return true;
 		}
 
 		__forceinline size_t insert_impl(vector<_map_control>& control, internal::flat_map_data_array<tuple<key_type, value_type>>& map, tuple<key_type, value_type>&& t)
@@ -580,6 +565,7 @@ namespace ktl
 				// We found an empty slot in the control map. Insert here.
 				if (control[index].is_empty())
 				{
+					++size_;
 					map[index] = move(t);
 					control[index] = truncated_hash;
 					return index;
@@ -634,18 +620,11 @@ namespace ktl
 		/// subsequent calculations in a scope containing a ktl::floating_point_state object
 		[[nodiscard]] double max_load_factor() const
 		{
-			return 0.7;
+			return 0.8;
 		}
 
 		[[nodiscard]] bool try_grow()
 		{
-			{
-				floating_point_state state;
-
-				if (load_factor() < max_load_factor())
-					return true;
-			}
-
 			auto c = capacity();
 
 			if (c == 0)
@@ -654,11 +633,19 @@ namespace ktl
 			}
 			else
 			{
+				{
+					floating_point_state state;
+
+					if (load_factor() < max_load_factor())
+						return true;
+				}
+
 				return reserve(c * 2);
 			}
 		}
 
 	private:
+		size_t size_ = 0;
 		vector<_map_control, allocator_type> control_;
 		internal::flat_map_data_array<tuple<key_type, value_type>, allocator_type> map_;
 	};
