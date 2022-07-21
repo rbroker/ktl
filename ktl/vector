@@ -271,7 +271,7 @@ namespace ktl
 
 		void pop_back()
 		{
-			if constexpr (!is_trivially_destructable_v<value_type>)
+			if constexpr (!is_trivially_destructible_v<value_type>)
 			{
 				auto& value = data()[size_ - 1];
 				value.~T();
@@ -430,7 +430,7 @@ namespace ktl
 
 		[[nodiscard]] void clear()
 		{
-			if constexpr (is_trivially_destructable_v<value_type>)
+			if constexpr (is_trivially_destructible_v<value_type>)
 			{
 				size_ = 0;
 			}

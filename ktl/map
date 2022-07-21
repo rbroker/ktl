@@ -4,9 +4,12 @@
 #include "algorithm"
 #include "limits"
 #include "tuple"
+#include "memory"
 #include "utility"
-#include "vector"
 #include "hash_impl.h"
+
+// Assuming x86, we can assume that everything after Windows 8 supports SSE2, at least.
+#include <emmintrin.h>
 
 namespace ktl
 {
@@ -15,6 +18,33 @@ namespace ktl
 
 	namespace internal
 	{
+		constexpr uint8_t MAP_CONTROL_EMPTY = 0x80;
+		constexpr uint8_t MAP_CONTROL_PARTIAL_HASH_MASK = 0x7F;
+
+		struct _map_control
+		{
+			_map_control(uint8_t value) : control_byte_(value)
+			{
+			}
+
+			bool is_hash(uint8_t truncatedHash) const
+			{
+				return control_byte_ == truncatedHash;
+			}
+
+			bool is_empty() const
+			{
+				return control_byte_ == MAP_CONTROL_EMPTY;
+			}
+
+			void erase()
+			{
+				control_byte_ = MAP_CONTROL_EMPTY;
+			}
+
+			uint8_t control_byte_ = MAP_CONTROL_EMPTY;
+		};
+
 		// Resizable array which doesn't own the elements it contains
 		// Intended for use with the map, so that we can destroy elements in the pseudo vector
 		// without needing to memmove etc.
@@ -185,9 +215,14 @@ namespace ktl
 					return true;
 
 				// Obtain freshly-sized backing memory
-				T* tmp = reinterpret_cast<T*>(a_.allocate(sizeof(T) * newSize));
+				size_t control_bytes = (sizeof(_map_control) * newSize);
+				size_t map_bytes = (sizeof(T) * newSize);
+				T* tmp = reinterpret_cast<T*>(a_.allocate(control_bytes + map_bytes));
 				if (!tmp)
 					return false;
+
+				static_assert(sizeof(_map_control) == sizeof(uint8_t));
+				memset(tmp, MAP_CONTROL_EMPTY, control_bytes);
 
 				// Free existing backing memory.
 				release_memory();
@@ -198,19 +233,14 @@ namespace ktl
 				return true;
 			}
 
-			[[nodiscard]] T& operator[](size_t index)
+			[[nodiscard]] _map_control* control()
 			{
-				return data()[index];
+				return reinterpret_cast<_map_control*>(buffer_);
 			}
 
-			[[nodiscard]] T* data()
+			[[nodiscard]] T* map()
 			{
-				return buffer_;
-			}
-
-			[[nodiscard]] const T* data() const
-			{
-				return buffer_;
+				return reinterpret_cast<T*>(reinterpret_cast<_map_control*>(buffer_) + capacity());
 			}
 
 		private:
@@ -228,33 +258,6 @@ namespace ktl
 			allocator_type& a_;
 		};
 	}
-
-	constexpr uint8_t MAP_CONTROL_EMPTY = 0x80;
-	constexpr uint8_t MAP_CONTROL_PARTIAL_HASH_MASK = 0x7F;
-
-	struct _map_control
-	{
-		_map_control(uint8_t value) : control_byte_(value)
-		{
-		}
-
-		bool is_hash(uint8_t truncatedHash) const
-		{
-			return control_byte_ == truncatedHash;
-		}
-
-		bool is_empty() const
-		{
-			return control_byte_ == MAP_CONTROL_EMPTY;
-		}
-
-		void erase()
-		{
-			control_byte_ = MAP_CONTROL_EMPTY;
-		}
-
-		uint8_t control_byte_ = MAP_CONTROL_EMPTY;
-	};
 
 	template<class key_type, class value_type, class comparer, class allocator_type>
 	struct flat_map;
@@ -296,12 +299,12 @@ namespace ktl
 
 		reference operator*() const
 		{
-			return map_->map_[index_];
+			return map_->backing_.map()[index_];
 		}
 
 		pointer operator->() const
 		{
-			return addressof(map_->map_[index_]);
+			return addressof(map_->backing_.map_()[index_]);
 		}
 
 		flat_map_iterator& operator++()
@@ -331,7 +334,7 @@ namespace ktl
 	private:
 		void next()
 		{
-			auto& control = map_->control_;
+			auto control = map_->backing_.control();
 			size_t capacity = map_->capacity();
 
 			// Try to find the next element by searching for an in-use slot
@@ -362,6 +365,7 @@ namespace ktl
 	struct flat_map
 	{
 		using iterator = flat_map_iterator<key_type, value_type, comparer, allocator_type>;
+		using element_type = tuple<key_type, value_type>;
 		friend struct iterator;
 
 		~flat_map()
@@ -376,7 +380,7 @@ namespace ktl
 
 			tuple t{ move(key), move(value) };
 
-			size_t index = insert_impl(control_, map_, move(t));
+			size_t index = insert_impl(backing_.control(), backing_.map(), move(t), backing_.capacity());
 
 			if (index == numeric_limits<size_t>::max())
 				return iterator{};
@@ -391,7 +395,7 @@ namespace ktl
 
 			tuple t{ key, value };
 
-			size_t index = insert_impl(control_, map_, move(t));
+			size_t index = insert_impl(backing_.control(), backing_.map(), move(t), backing_.capacity());
 
 			if (index == numeric_limits<size_t>::max())
 				return iterator{};
@@ -411,7 +415,7 @@ namespace ktl
 
 		size_t capacity() const
 		{
-			return control_.size();
+			return backing_.capacity();
 		}
 
 		size_t size() const
@@ -421,16 +425,20 @@ namespace ktl
 
 		void clear()
 		{
-			size_t index = 0;
-			for (auto& c : control_)
+			size_t cap = capacity();
+			auto control = backing_.control();
+			auto map = backing_.map();
+
+			for (size_t i = 0; i < cap; ++i)
 			{
+				const auto& c = control[i];
 				if (!c.is_empty())
 				{
-					remove_element(control_, map_, index);
+					remove_element(control, map, i);
 				}
-
-				++index;
 			}
+
+			size_ = 0;
 		}
 
 		/// <summary>
@@ -443,7 +451,8 @@ namespace ktl
 			if (index == numeric_limits<size_t>::max())
 				return iterator{};
 
-			remove_element(control_, map_, index);
+			remove_element(backing_.control(), backing_.map(), index);
+			--size_;
 
 			auto it = iterator{ this, index };
 			return ++it;
@@ -490,14 +499,14 @@ namespace ktl
 		}
 
 	private:
-		void remove_element(vector<_map_control>& control, internal::flat_map_data_array<tuple<key_type, value_type>>& map, size_t index)
+		void remove_element(internal::_map_control* control, tuple<key_type, value_type>* map, size_t index)
 		{
 			control[index].erase();
 
 			// If this type needs non-trivial destruction, then do something with
 			// it, otherwise we can just leave it in the map_ with the control byte
 			// indicating empty.
-			if constexpr (!is_trivially_destructable_v<tuple<key_type, value_type>>)
+			if constexpr (!is_trivially_destructible_v<tuple<key_type, value_type>>)
 			{
 				map[index].~tuple();
 			}
@@ -507,103 +516,199 @@ namespace ktl
 
 		bool rehash(size_t newCapacity)
 		{
-			vector<_map_control, allocator_type> newControl;
-			if (!newControl.resize(newCapacity, MAP_CONTROL_EMPTY))
-				return false;
-
-			internal::flat_map_data_array<tuple<key_type, value_type>, allocator_type> newMap;
-			if (!newMap.reserve(newCapacity))
+			internal::flat_map_data_array<tuple<key_type, value_type>, allocator_type> newBacking;
+			if (!newBacking.reserve(newCapacity))
 				return false;
 
 			size_ = 0; // We'll be re-inserting all elements which will increment size, so just drop ourselves back down to "empty" before re-insertion.
-			size_t index = 0;
-			for (const auto& c : as_const(control_))
+			size_t cap = capacity();
+			auto control = backing_.control();
+			auto map = backing_.map();
+			auto newControl = newBacking.control();
+			auto newMap = newBacking.map();
+
+			for (size_t index = 0; index < cap; ++index)
 			{
+				auto& c = control[index];
 				if (!c.is_empty())
 				{
-					insert_impl(newControl, newMap, move(map_[index]));
+					insert_impl(newControl, newMap, move(map[index]), newCapacity);
 				}
-
-				++index;
 			}
 
-			control_ = move(newControl);
-			map_ = move(newMap);
+			backing_ = move(newBacking);
 
 			return true;
 		}
 
-		__forceinline size_t insert_impl(vector<_map_control>& control, internal::flat_map_data_array<tuple<key_type, value_type>>& map, tuple<key_type, value_type>&& t)
+		__forceinline size_t insert_impl(internal::_map_control* control, tuple<key_type, value_type>* map, tuple<key_type, value_type>&& t, size_t map_capacity)
 		{
-			auto&& [key, value] = t;
-			auto h = hash<key_type>{}(key);
-			uint8_t truncated_hash = h & MAP_CONTROL_PARTIAL_HASH_MASK;
-			size_t map_capacity = control.size();
+			constexpr size_t SIMD_CHUNK_SIZE = sizeof(__m128i) / sizeof(uint8_t);
+			const auto& [key, value] = t;
+			const auto h = hash<key_type>{}(key);
+			const uint8_t truncated_hash = h & internal::MAP_CONTROL_PARTIAL_HASH_MASK;
 			size_t index = h % map_capacity;
 			const size_t endIndex = index;
 
 			// Probe each element in the map at least once.
 			do
 			{
-				// Potential duplicate key.
-				if (control[index].is_hash(truncated_hash))
+				if ((map_capacity - index) >= SIMD_CHUNK_SIZE)
 				{
-					const auto& [element_key, element_value] = map[index];
+					__m128i control_chunk = _mm_loadu_si128(reinterpret_cast<__m128i*>(addressof(control[index])));
 
-					if (hash<key_type>{}(element_key) == h && comparer()(element_key, key))
+					// Check for duplicate keys
+					__m128i probe_hash_mask = _mm_set1_epi8(truncated_hash);
+					__m128i probe_hash_match = _mm_cmpeq_epi8(control_chunk, probe_hash_mask);
+					int matchMask = _mm_movemask_epi8(probe_hash_match);
+					unsigned long indexOffset;
+
+					// Scan all hash matches to see if we have a match.
+					while (BitScanForward(&indexOffset, matchMask))
 					{
-						if constexpr (!is_trivially_destructable_v<tuple<key_type, value_type>>)
+						auto tmpIndex = index + indexOffset;
+						const auto& [element_key, element_value] = map[tmpIndex];
+
+						if (comparer()(element_key, key)) [[likely]]
 						{
-							map[index].~tuple();
+							if constexpr (!is_trivially_destructible_v<tuple<key_type, value_type>>)
+							{
+								map[tmpIndex].~tuple();
+							}
+
+							(void) construct_at<element_type>(addressof(map[tmpIndex]), move(t));
+							return tmpIndex;
 						}
 
-						map[index] = move(t);
+						// Disable bit we just checked in case we loop around again.
+						matchMask &= ~(1 << indexOffset);
+					}
+
+					// We only need to find a single empty element for an insertion.
+					__m128i probe_empty_mask = _mm_set1_epi8(internal::MAP_CONTROL_EMPTY);
+					__m128i probe_empty_match = _mm_cmpeq_epi8(control_chunk, probe_empty_mask);
+					matchMask = _mm_movemask_epi8(probe_empty_match);
+
+					if (BitScanForward(&indexOffset, matchMask))
+					{
+						auto tmpIndex = index + indexOffset;
+
+						++size_;
+						(void)construct_at<element_type>(addressof(map[tmpIndex]), move(t));
+						control[tmpIndex] = truncated_hash;
+						return tmpIndex;
+					}
+
+					// If we didn't get a match, check the next chunk.
+					index = (index + SIMD_CHUNK_SIZE) % map_capacity;
+				}
+				else
+				{
+					// Potential duplicate key.
+					if (control[index].is_hash(truncated_hash))
+					{
+						const auto& [element_key, element_value] = map[index];
+
+						if (comparer()(element_key, key)) [[likely]]
+						{
+							if constexpr (!is_trivially_destructible_v<element_type>)
+							{
+								map[index].~tuple();
+							}
+
+							(void)construct_at<element_type>(addressof(map[index]), move(t));
+							return index;
+						}
+					}
+
+					// We found an empty slot in the control map. Insert here.
+					if (control[index].is_empty())
+					{
+						++size_;
+						(void)construct_at<element_type>(addressof(map[index]), move(t));
+						control[index] = truncated_hash;
 						return index;
 					}
-				}
 
-				// We found an empty slot in the control map. Insert here.
-				if (control[index].is_empty())
-				{
-					++size_;
-					map[index] = move(t);
-					control[index] = truncated_hash;
-					return index;
+					// wrap back to the start of the map if we reach the end.
+					index = (index + 1) % map_capacity;
 				}
-
-				// wrap back to the start of the map if we reach the end.
-				index = (index + 1) % map_capacity;
 			} while (index != endIndex);
 
 			return numeric_limits<size_t>::max();
 		}
 
+		__forceinline bool sse2_any_control_bytes_empty(__m128i* chunk)
+		{
+			// If there's any empty elements in this chunk, we can abandon our search.
+			const __m128i probe_empty_mask = _mm_set1_epi8(internal::MAP_CONTROL_EMPTY);
+			const __m128i probe_empty_match = _mm_cmpeq_epi8(*chunk, probe_empty_mask);
+			return _mm_movemask_epi8(probe_empty_match) != 0;
+		}
+
 		__forceinline size_t find_impl(const key_type& key)
 		{
-			auto h = hash<key_type>{}(key);
-			uint8_t truncated_hash = h & MAP_CONTROL_PARTIAL_HASH_MASK;
+			const auto h = hash<key_type>{}(key);
+			const uint8_t truncated_hash = h & internal::MAP_CONTROL_PARTIAL_HASH_MASK;
 			const size_t map_capacity = capacity();
 			size_t index = h % map_capacity;
 			const size_t endIndex = index;
+			auto control = backing_.control();
+			auto map = backing_.map();
+
+			constexpr size_t SIMD_CHUNK_SIZE = sizeof(__m128i) / sizeof(uint8_t);
 
 			// Probe each element at least once.
 			do
 			{
-				if (control_[index].is_hash(truncated_hash))
+				if ((map_capacity - index) >= SIMD_CHUNK_SIZE)
 				{
-					const auto& [element_key, element_value] = map_[index];
+					__m128i control_chunk = _mm_loadu_si128(reinterpret_cast<__m128i*>(&(control[index])));
 
-					if (hash<key_type>{}(element_key) == h && comparer()(element_key, key))
-						return index;
+					// Check for hash matches in this block.
+					const __m128i probe_hash_mask = _mm_set1_epi8(truncated_hash);
+					const __m128i probe_hash_match = _mm_cmpeq_epi8(control_chunk, probe_hash_mask);
+					int matchMask = _mm_movemask_epi8(probe_hash_match);
+					unsigned long indexOffset;
+					// Scan all hash matches to see if we have a match.
+					while (BitScanForward(&indexOffset, matchMask))
+					{
+						auto tmpIndex = index + indexOffset;
+						const auto& [element_key, element_value] = map[tmpIndex];
+
+						if (comparer()(element_key, key)) [[likely]]
+							return tmpIndex;
+
+						// Disable the bit we just checked before continuing.
+						matchMask &= ~(1 << indexOffset);
+					}
+
+					// If there's any empty elements in this chunk, and we haven't found a matching
+					// element yet, we can abandon our search.
+					if (sse2_any_control_bytes_empty(&control_chunk))
+						break;
+
+					// If we didn't get a match, check the next chunk.
+					index = (index + SIMD_CHUNK_SIZE) % map_capacity;
 				}
+				else
+				{
+					if (control[index].is_hash(truncated_hash))
+					{
+						const auto& [element_key, element_value] = map[index];
 
-				// If our probe hit an empty map element, then the value
-				// we're looking for can't be in this map.
-				if (control_[index].is_empty())
-					break;
+						if (comparer()(element_key, key)) [[likely]]
+							return index;
+					}
 
-				// wrap back to the start of the map if we reach the end.
-				index = (index + 1) % map_capacity;
+					// If our probe hit an empty map element, then the value
+					// we're looking for can't be in this map.
+					if (control[index].is_empty())
+						break;
+
+					// wrap back to the start of the map if we reach the end.
+					index = (index + 1) % map_capacity;
+				}
 			} while (index != endIndex);
 
 			return numeric_limits<size_t>::max();
@@ -646,8 +751,7 @@ namespace ktl
 
 	private:
 		size_t size_ = 0;
-		vector<_map_control, allocator_type> control_;
-		internal::flat_map_data_array<tuple<key_type, value_type>, allocator_type> map_;
+		internal::flat_map_data_array<tuple<key_type, value_type>, allocator_type> backing_;
 	};
 
 	template<class key_type, class value_type, class comparer, class allocator_type>
