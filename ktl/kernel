@@ -26,6 +26,26 @@ namespace ktl
 		XSTATE_SAVE state_;
 	};
 
+	struct [[nodiscard]] sse_state
+	{
+		/// <summary>
+		/// Helper to save & restore x87 floating point state.
+		/// </summary>
+		sse_state()
+		{
+			if (NT_ERROR(KeSaveExtendedProcessorState(XSTATE_MASK_LEGACY_SSE, &state_)))
+				KTL_LOG_ERROR("Failed to save SSE register state!\n");
+		}
+
+		~sse_state()
+		{
+			KeRestoreExtendedProcessorState(&state_);
+		}
+
+	private:
+		XSTATE_SAVE state_;
+	};
+
 	/// <summary>
 	/// IRP which will complete itself with the current value of `status` when
 	/// it is destroyed.

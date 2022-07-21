@@ -375,6 +375,10 @@ namespace ktl
 
 		iterator insert(key_type&& key, value_type&& value)
 		{
+			// https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/floating-point-support-for-64-bit-drivers
+			// Save SSE register states, in case we're x86.
+			sse_state saved_state;
+
 			if (!try_grow())
 				return iterator{};
 
@@ -390,6 +394,10 @@ namespace ktl
 
 		iterator insert(key_type const& key, value_type const& value)
 		{
+			// https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/floating-point-support-for-64-bit-drivers
+			// Save SSE register states, in case we're x86.
+			sse_state saved_state;
+
 			if (!try_grow())
 				return iterator{};
 
@@ -405,6 +413,10 @@ namespace ktl
 
 		iterator find(const key_type& key)
 		{
+			// https://docs.microsoft.com/en-us/windows-hardware/drivers/kernel/floating-point-support-for-64-bit-drivers
+			// Save SSE register states, in case we're x86.
+			sse_state saved_state;
+
 			size_t index = find_impl(key);
 
 			if (index == numeric_limits<size_t>::max())
@@ -569,7 +581,7 @@ namespace ktl
 						auto tmpIndex = index + indexOffset;
 						const auto& [element_key, element_value] = map[tmpIndex];
 
-						if (comparer()(element_key, key)) [[likely]]
+						if (comparer()(element_key, key) && hash<key_type>{}(key) == h) [[likely]]
 						{
 							if constexpr (!is_trivially_destructible_v<tuple<key_type, value_type>>)
 							{
@@ -609,7 +621,7 @@ namespace ktl
 					{
 						const auto& [element_key, element_value] = map[index];
 
-						if (comparer()(element_key, key)) [[likely]]
+						if (comparer()(element_key, key) && hash<key_type>{}(key) == h) [[likely]]
 						{
 							if constexpr (!is_trivially_destructible_v<element_type>)
 							{
@@ -676,7 +688,7 @@ namespace ktl
 						auto tmpIndex = index + indexOffset;
 						const auto& [element_key, element_value] = map[tmpIndex];
 
-						if (comparer()(element_key, key)) [[likely]]
+						if (comparer()(element_key, key) && hash<key_type>{}(key) == h) [[likely]]
 							return tmpIndex;
 
 						// Disable the bit we just checked before continuing.
@@ -697,7 +709,7 @@ namespace ktl
 					{
 						const auto& [element_key, element_value] = map[index];
 
-						if (comparer()(element_key, key)) [[likely]]
+						if (comparer()(element_key, key) && hash<key_type>{}(key) == h) [[likely]]
 							return index;
 					}
 
