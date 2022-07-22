@@ -559,7 +559,7 @@ namespace ktl
 			const auto& [key, value] = t;
 			const auto h = hash<key_type>{}(key);
 			const uint8_t truncated_hash = h & internal::MAP_CONTROL_PARTIAL_HASH_MASK;
-			size_t index = h % map_capacity;
+			size_t index = (h >> 8) % map_capacity;
 			const size_t endIndex = index;
 
 			// Probe each element in the map at least once.
@@ -663,7 +663,7 @@ namespace ktl
 			const auto h = hash<key_type>{}(key);
 			const uint8_t truncated_hash = h & internal::MAP_CONTROL_PARTIAL_HASH_MASK;
 			const size_t map_capacity = capacity();
-			size_t index = h % map_capacity;
+			size_t index = (h >> 8) % map_capacity;
 			const size_t endIndex = index;
 			auto control = backing_.control();
 			auto map = backing_.map();
