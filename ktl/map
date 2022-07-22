@@ -581,7 +581,7 @@ namespace ktl
 						auto tmpIndex = index + indexOffset;
 						const auto& [element_key, element_value] = map[tmpIndex];
 
-						if (comparer()(element_key, key) && hash<key_type>{}(key) == h) [[likely]]
+						if (comparer()(element_key, key)) [[likely]]
 						{
 							if constexpr (!is_trivially_destructible_v<tuple<key_type, value_type>>)
 							{
@@ -621,7 +621,7 @@ namespace ktl
 					{
 						const auto& [element_key, element_value] = map[index];
 
-						if (comparer()(element_key, key) && hash<key_type>{}(key) == h) [[likely]]
+						if (comparer()(element_key, key)) [[likely]]
 						{
 							if constexpr (!is_trivially_destructible_v<element_type>)
 							{
@@ -688,7 +688,7 @@ namespace ktl
 						auto tmpIndex = index + indexOffset;
 						const auto& [element_key, element_value] = map[tmpIndex];
 
-						if (comparer()(element_key, key) && hash<key_type>{}(key) == h) [[likely]]
+						if (comparer()(element_key, key)) [[likely]]
 							return tmpIndex;
 
 						// Disable the bit we just checked before continuing.
@@ -709,7 +709,7 @@ namespace ktl
 					{
 						const auto& [element_key, element_value] = map[index];
 
-						if (comparer()(element_key, key) && hash<key_type>{}(key) == h) [[likely]]
+						if (comparer()(element_key, key)) [[likely]]
 							return index;
 					}
 
