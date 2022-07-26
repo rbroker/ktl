@@ -20,6 +20,7 @@ namespace ktl
 	{
 		constexpr uint8_t MAP_CONTROL_EMPTY = 0x80;
 		constexpr uint8_t MAP_CONTROL_PARTIAL_HASH_MASK = 0x7F;
+		constexpr uint8_t MAP_CONTROL_PARTIAL_HASH_LENGTH = 0x7;
 
 		struct _map_control
 		{
@@ -486,17 +487,25 @@ namespace ktl
 		/// </summary>
 		[[nodiscard]] bool shrink_to_fit()
 		{
-			size_t newCapacity;
+			size_t newCapacity = capacity();
+			const size_t sz = size();
 
+			while (newCapacity > 0)
 			{
-				floating_point_state state;
+				size_t c = newCapacity >> 1;
 
-				double excessLoad = max_load_factor() - load_factor();
-				newCapacity = (capacity() - (size_t)(((double)capacity()) * excessLoad)) + 1;
+				if (c > sz)
+				{
+					newCapacity = c;
+				}
+				else
+				{
+					break;
+				}
 			}
 
 			// Don't do an expensive rehash unless we need to.
-			if (newCapacity == capacity())
+			if (newCapacity >= capacity() || newCapacity == 0)
 				return true;
 
 			return rehash(newCapacity);
@@ -507,10 +516,22 @@ namespace ktl
 			if (newCapacity <= capacity())
 				return true;
 
+			// Only accept 2^ table sizes.
+			if ((newCapacity & (newCapacity - 1)) != 0)
+			{
+				return false;
+			}
+
 			return rehash(newCapacity);
 		}
 
 	private:
+		// Fast modulus, requires power of two divisor.
+		inline size_t fast_modulo(size_t val, size_t divisor)
+		{
+			return val & (divisor - 1);
+		}
+
 		void remove_element(internal::_map_control* control, tuple<key_type, value_type>* map, size_t index)
 		{
 			control[index].erase();
@@ -559,8 +580,10 @@ namespace ktl
 			const auto& [key, value] = t;
 			const auto h = hash<key_type>{}(key);
 			const uint8_t truncated_hash = h & internal::MAP_CONTROL_PARTIAL_HASH_MASK;
-			size_t index = (h >> 8) % map_capacity;
+			size_t index = fast_modulo(h >> internal::MAP_CONTROL_PARTIAL_HASH_LENGTH, map_capacity);
 			const size_t endIndex = index;
+
+			const __m128i probe_hash_mask = _mm_set1_epi8(truncated_hash);
 
 			// Probe each element in the map at least once.
 			do
@@ -570,7 +593,6 @@ namespace ktl
 					__m128i control_chunk = _mm_loadu_si128(reinterpret_cast<__m128i*>(addressof(control[index])));
 
 					// Check for duplicate keys
-					__m128i probe_hash_mask = _mm_set1_epi8(truncated_hash);
 					__m128i probe_hash_match = _mm_cmpeq_epi8(control_chunk, probe_hash_mask);
 					int matchMask = _mm_movemask_epi8(probe_hash_match);
 					unsigned long indexOffset;
@@ -612,7 +634,7 @@ namespace ktl
 					}
 
 					// If we didn't get a match, check the next chunk.
-					index = (index + SIMD_CHUNK_SIZE) % map_capacity;
+					index = fast_modulo(index + SIMD_CHUNK_SIZE, map_capacity);
 				}
 				else
 				{
@@ -643,7 +665,7 @@ namespace ktl
 					}
 
 					// wrap back to the start of the map if we reach the end.
-					index = (index + 1) % map_capacity;
+					index = fast_modulo(index + 1, map_capacity);
 				}
 			} while (index != endIndex);
 
@@ -663,12 +685,12 @@ namespace ktl
 			const auto h = hash<key_type>{}(key);
 			const uint8_t truncated_hash = h & internal::MAP_CONTROL_PARTIAL_HASH_MASK;
 			const size_t map_capacity = capacity();
-			size_t index = (h >> 8) % map_capacity;
+			size_t index = fast_modulo(h >> internal::MAP_CONTROL_PARTIAL_HASH_LENGTH, map_capacity);
 			const size_t endIndex = index;
 			auto control = backing_.control();
-			auto map = backing_.map();
 
 			constexpr size_t SIMD_CHUNK_SIZE = sizeof(__m128i) / sizeof(uint8_t);
+			const __m128i probe_hash_mask = _mm_set1_epi8(truncated_hash);
 
 			// Probe each element at least once.
 			do
@@ -678,7 +700,6 @@ namespace ktl
 					__m128i control_chunk = _mm_loadu_si128(reinterpret_cast<__m128i*>(&(control[index])));
 
 					// Check for hash matches in this block.
-					const __m128i probe_hash_mask = _mm_set1_epi8(truncated_hash);
 					const __m128i probe_hash_match = _mm_cmpeq_epi8(control_chunk, probe_hash_mask);
 					int matchMask = _mm_movemask_epi8(probe_hash_match);
 					unsigned long indexOffset;
@@ -686,7 +707,7 @@ namespace ktl
 					while (BitScanForward(&indexOffset, matchMask))
 					{
 						auto tmpIndex = index + indexOffset;
-						const auto& [element_key, element_value] = map[tmpIndex];
+						const auto& [element_key, element_value] = backing_.map()[tmpIndex];
 
 						if (comparer()(element_key, key)) [[likely]]
 							return tmpIndex;
@@ -701,13 +722,13 @@ namespace ktl
 						break;
 
 					// If we didn't get a match, check the next chunk.
-					index = (index + SIMD_CHUNK_SIZE) % map_capacity;
+					index = fast_modulo(index + SIMD_CHUNK_SIZE, map_capacity);
 				}
 				else
 				{
 					if (control[index].is_hash(truncated_hash))
 					{
-						const auto& [element_key, element_value] = map[index];
+						const auto& [element_key, element_value] = backing_.map()[index];
 
 						if (comparer()(element_key, key)) [[likely]]
 							return index;
@@ -719,7 +740,7 @@ namespace ktl
 						break;
 
 					// wrap back to the start of the map if we reach the end.
-					index = (index + 1) % map_capacity;
+					index = fast_modulo(index + 1, map_capacity);
 				}
 			} while (index != endIndex);
 
@@ -746,7 +767,7 @@ namespace ktl
 
 			if (c == 0)
 			{
-				return reserve(1);
+				return reserve(2);
 			}
 			else
 			{
