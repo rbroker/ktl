@@ -2,6 +2,22 @@
 
 #include <map>
 
+struct DestructorCounter
+{
+	DestructorCounter(size_t* count) :
+		count_(count)
+	{
+	}
+
+	~DestructorCounter()
+	{
+		++(*count_);
+	}
+
+private:
+	size_t* count_;
+};
+
 bool test_map()
 {
 	__try
@@ -61,7 +77,21 @@ bool test_map()
 			ASSERT_TRUE(value == key + 1, "Unexpected value of value of found element.");
 		}
 
-		ktl::flat_map<int, int> min_shrink;
+		ktl::flat_map<int, DestructorCounter> counter;
+		size_t actualCount = 50;
+		size_t destroyedCount = 0;
+		for (int i = 0; i < actualCount; ++i)
+		{
+			counter.insert(i, DestructorCounter{ &destroyedCount });
+		}
+
+		// Growing the map will have done some move constructions.
+		destroyedCount = 0;
+
+		counter.clear();
+		ASSERT_TRUE(counter.size() == 0, "Unexpected size after clear.");
+		ASSERT_TRUE(destroyedCount == actualCount, "Unexpected object destruction count (%llu != %llu)", destroyedCount, actualCount); // Clear should have found all non-empty elements and destroyed them.
+
 	}
 	__except (EXCEPTION_EXECUTE_HANDLER)
 	{

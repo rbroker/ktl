@@ -251,6 +251,7 @@ namespace ktl
 					return;
 
 				a_.deallocate(buffer_);
+				buffer_ = nullptr;
 			}
 
 		private:
@@ -442,16 +443,40 @@ namespace ktl
 			auto control = backing_.control();
 			auto map = backing_.map();
 
-			for (size_t i = 0; i < cap; ++i)
+			size_t i = 0;
+			constexpr size_t SIMD_CHUNK_SIZE = sizeof(__m128i) / sizeof(uint8_t);
+			auto empty_mask = _mm_set1_epi8(internal::MAP_CONTROL_EMPTY);
+
+			while (i < cap)
 			{
-				const auto& c = control[i];
-				if (!c.is_empty())
+				if ((cap - i) >= SIMD_CHUNK_SIZE)
 				{
-					remove_element(control, map, i);
+					auto chunk = _mm_loadu_si128(reinterpret_cast<__m128i*>(addressof(control[i])));
+					auto empty_match = _mm_cmpeq_epi8(chunk, empty_mask);
+					int not_empty_mask = ~(_mm_movemask_epi8(empty_match)) & 0xFFFF;
+
+					// Scan though all non-empty control bytes and destroy the corresponding elements.
+					unsigned long indexOffset;
+					while (BitScanForward(&indexOffset, not_empty_mask))
+					{
+						auto tmpIndex = i + indexOffset;
+						remove_element(control, map, tmpIndex);
+						not_empty_mask &= ~(1 << indexOffset);
+					}
+
+					i += SIMD_CHUNK_SIZE;
+				}
+				else
+				{
+					const auto& c = control[i];
+					if (!c.is_empty())
+					{
+						remove_element(control, map, i);
+					}
+
+					++i;
 				}
 			}
-
-			size_ = 0;
 		}
 
 		/// <summary>
@@ -473,7 +498,14 @@ namespace ktl
 
 		iterator begin() const
 		{
-			return iterator {this, 0 };
+			if (size() > 0)
+			{
+				return iterator{ this, 0 };
+			}
+			else
+			{
+				return end();
+			}
 		}
 
 		iterator end() const
