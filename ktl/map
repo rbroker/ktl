@@ -482,19 +482,22 @@ namespace ktl
 		}
 
 		/// <summary>
-		/// Shrinks the map such that it's fully loaded (as defined by max_load_factor).
+		/// Shrinks the map such that it occupies the smallest possible (power of 2) size which doesn't
+		/// exceed the max load factor.
 		/// Will incur a rehashing cost and temporarily increased memory usage while shrinking.
 		/// </summary>
 		[[nodiscard]] bool shrink_to_fit()
 		{
 			size_t newCapacity = capacity();
-			const size_t sz = size();
+			const double sz = static_cast<double>(size());
+
+			floating_point_state state;
 
 			while (newCapacity > 0)
 			{
 				size_t c = newCapacity >> 1;
 
-				if (c > sz)
+				if (sz / c <= max_load_factor())
 				{
 					newCapacity = c;
 				}

@@ -30,8 +30,9 @@ bool test_map()
 
 		ASSERT_TRUE(m.size() == 1, "Unexpected map size after overwriting key.");
 
-		ASSERT_TRUE(m.reserve(5000), "Unable to reset map capacity!");
-		const size_t BIG_MAP_SIZE = 500000;
+		const size_t BIG_MAP_SIZE = 0x80000;
+		ASSERT_FALSE(m.reserve(BIG_MAP_SIZE - 16), "Able to reserve non power 2 size!");
+		ASSERT_TRUE(m.reserve(BIG_MAP_SIZE), "Unable to reserve map capacity!");
 		for (int i = 1; i < BIG_MAP_SIZE; ++i)
 		{
 			m.insert(i, i + 1);
@@ -39,11 +40,20 @@ bool test_map()
 
 		ASSERT_TRUE(m.size() == BIG_MAP_SIZE, "Unexpected number of elements in map after many insertions");
 		ASSERT_TRUE(m.capacity() > m.size(), "Map growth strategy didn't leave us with excess elements");
+
+		// Remove 1/4 of the elements in the map, this should free up enough space for
+		// us to shrink the map to a smaller power of 2 (0x80000), without exceeding
+		// our max load factor.
+		for (int i = 0; i < BIG_MAP_SIZE / 4; ++i)
+		{
+			m.erase(i);
+		}
+
 		auto initialCapacity = m.capacity();
 		ASSERT_TRUE(m.shrink_to_fit(), "Map minimisation failed.");
 		ASSERT_TRUE(m.capacity() < initialCapacity, "Unexpected map capacity after shrinkage! (%llu >= %llu, %llu)", m.capacity(), initialCapacity, m.size());
 		ASSERT_TRUE(m.capacity() > m.size(), "Unexpected map capacity after shrinkage!");
-		ASSERT_TRUE(m.find(2500) != m.end(), "Unable to find inserted element!");
+
 		{
 			auto bigFind = m.find(BIG_MAP_SIZE - 1);
 			auto [key, value] = *bigFind;
